@@ -1,6 +1,6 @@
 {
   "name": "goyangi",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A panel beside the Claude Code conversation: watch each turn's steps, tools, tokens, cost, and usage limits; hand work between sessions, coding agents, and browser tabs; and continue in a fresh session before the context fills (/goyangi)",
   "keywords": [
     "claude-code",

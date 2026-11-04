@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.0.2 (2026-11-04)
+
+- Renamed to Goyangi (npm `goyangi`, `/goyangi`, `goyangi@goyangi`)
+- README: Getting started with install and usage examples
+
 ## v1.0.1 (2026-11-04)
 
 - Verify the auto update path on the GitHub install
