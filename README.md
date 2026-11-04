@@ -69,6 +69,13 @@ VIEW=avatar node check.mjs  # walk view (also SETTINGS=1, MODE=band for the mini
 FRAMES=1 node check.mjs 30  # print the frames, to spot titles wrapping into columns
 ```
 
+## Release
+
+1. Run `claude plugin validate .` and `claude plugin test .`
+2. Raise `version` in `package.json` and `.claude-plugin/plugin.json` (installed copies update only when it changes)
+3. Move the changelog entries under a new `## vX.Y.Z (date)` heading
+4. Commit, then `git tag vX.Y.Z`, `git push --follow-tags`, and `gh release create vX.Y.Z --notes-file <notes>`
+
 ## License
 
 [MIT](LICENSE)

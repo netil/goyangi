@@ -1,7 +1,17 @@
 # Changelog
 
-## Unreleased
+## v1.0.0 (2026-11-04)
 
+First public release.
+
+- Turn flow: model request step boxes, tool and subagent branches, time share bar, and spinning progress glyphs for in-flight steps
+- Advisor: gauges for context, cache, and usage limits (5h, 7d), request stats, and five rule-based advice checks with no extra cost
+- Subagents: boxes for running agents with recent tools, token share, and resumed agent handling
+- Session map: per-turn tool sequence, column headers, braille trend graph, scrollbar, and past turn replay
+- Session log: key events and the full log, scrolling in every view, positions pinned by absolute sequence
+- Mission view: a side-scrolling pixel scene of the turn, drawn as pixels on kitty and Ghostty and as SVG on desktop
+- Settings screen, panel position (right split or above the prompt), minimize to one row, and auto update
+- Claude desktop app support
 - Header logo: the walk view's cat face (`icons/yaong.png`, the main cat's head in its light blue, with the orange patch and dark eyes) replaces the 🐱 emoji; terminals that can't draw images keep the emoji; the minimized view's title draws the same logo
 - Top box: the tool mix moves to the server tools row, the running tool's command no longer shows after the model (the turn flow shows it), and durations past an hour read `4h45m` or `6d4h` (usage limit resets no longer cut off as `↻8885m…`)
 - Coding agent rows in Open sessions show busy (●) and idle (○) from cmux's status tag for that agent (Running, Idle), instead of always idle, and `!` when the agent's screen shows it waiting on a question (folder trust, a command to approve, y/n); a screen showing work in progress (`esc to interrupt`) counts as busy, over cmux's status, which can stay Idle while codex works
@@ -41,16 +51,3 @@
 - Header: stays at the top while the panel scrolls (terminal); the status chip and buttons sit in a non-shrinking right group and the summary is cut on narrow panels; ASCII icon buttons (v = - x) in fixed 3-cell chips, name-only tooltips, close turns white on black on hover
 - List hover cards cover the hovered row edge to edge; turn flow branch cards run to the panel edge
 - Terminal scrollbars accept clicks and drags, with a marker on the cell under the pointer
-
-## v1.0.0 (2026-10-28)
-
-First public release.
-
-- Turn flow: model request step boxes, tool and subagent branches, time share bar, and spinning progress glyphs for in-flight steps
-- Advisor: gauges for context, cache, and usage limits (5h, 7d), request stats, and five rule-based advice checks with no extra cost
-- Subagents: boxes for running agents with recent tools, token share, and resumed agent handling
-- Session map: per-turn tool sequence, column headers, braille trend graph, scrollbar, and past turn replay
-- Session log: key events and the full log, scrolling in every view, positions pinned by absolute sequence
-- Mission view: a side-scrolling pixel scene of the turn, drawn as pixels on kitty and Ghostty and as SVG on desktop
-- Settings screen, panel position (right split or above the prompt), minimize to one row, and auto update
-- Claude desktop app support
