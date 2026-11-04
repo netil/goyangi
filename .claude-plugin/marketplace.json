@@ -1,0 +1,14 @@
+{
+  "name": "yaong",
+  "owner": {
+    "name": "netil"
+  },
+  "description": "Marketplace for Yaong, a side panel for Claude Code",
+  "plugins": [
+    {
+      "name": "yaong",
+      "source": "./",
+      "description": "A panel beside the Claude Code conversation: watch each turn's steps, tools, tokens, cost, and usage limits; hand work between sessions, coding agents, and browser tabs; and continue in a fresh session before the context fills"
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "name": "yaong",
+  "version": "1.0.0",
+  "description": "A panel beside the Claude Code conversation: watch each turn's steps, tools, tokens, cost, and usage limits; hand work between sessions, coding agents, and browser tabs; and continue in a fresh session before the context fills (/yaong)",
+  "author": {
+    "name": "netil"
+  },
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "autoOpen": {
+      "type": "boolean",
+      "title": "Open the panel on session start",
+      "description": "Opens the Yaong panel when a session starts. If the terminal is too narrow, waits until it is wide enough",
+      "default": true
+    },
+    "ctxAlertPercent": {
+      "type": "number",
+      "title": "Context alert threshold (%)",
+      "description": "Shows an alert when context usage exceeds this value. 0 turns it off",
+      "default": 80
+    },
+    "turnCostAlertUsd": {
+      "type": "number",
+      "title": "Turn cost alert threshold ($)",
+      "description": "Shows an alert when one turn costs more than this value. 0 turns it off",
+      "default": 2
+    },
+    "stallSeconds": {
+      "type": "number",
+      "title": "Stall threshold (seconds)",
+      "description": "Marks a tool or subagent as stalled, and alerts, when it runs this long without any event. 0 turns it off",
+      "default": 120
+    },
+    "sessionRows": {
+      "type": "number",
+      "title": "Open sessions rows",
+      "description": "Rows the Open sessions box shows before it scrolls (1 to 10)",
+      "default": 4
+    },
+    "tabRows": {
+      "type": "number",
+      "title": "Browser tabs rows",
+      "description": "Rows the Browser tabs box shows before it scrolls (1 to 10)",
+      "default": 4
+    }
+  },
+  "homepage": "https://github.com/netil/yaong",
+  "repository": "https://github.com/netil/yaong",
+  "license": "MIT"
+}

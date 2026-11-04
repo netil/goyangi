@@ -1,0 +1,39 @@
+{
+  "name": "@netil/yaong",
+  "version": "1.0.0",
+  "description": "A panel beside the Claude Code conversation: watch each turn's steps, tools, tokens, cost, and usage limits; hand work between sessions, coding agents, and browser tabs; and continue in a fresh session before the context fills (/yaong)",
+  "keywords": [
+    "claude-code",
+    "claude-code-plugin",
+    "terminal",
+    "tui",
+    "observability",
+    "tokens",
+    "cost",
+    "subagents",
+    "pixel-art"
+  ],
+  "homepage": "https://github.com/netil/yaong#readme",
+  "bugs": {
+    "url": "https://github.com/netil/yaong/issues"
+  },
+  "license": "MIT",
+  "author": "netil",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/netil/yaong.git"
+  },
+  "private": true,
+  "types": "./types/index.d.ts",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p .",
+    "test": "claude plugin test .",
+    "validate": "claude plugin validate ."
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}
