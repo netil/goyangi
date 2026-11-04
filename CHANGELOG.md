@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.1 (2026-11-04)
+
+- Verify the auto update path on the GitHub install
+
 ## v1.0.0 (2026-11-04)
 
 First public release.

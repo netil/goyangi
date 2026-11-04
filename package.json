@@ -1,6 +1,6 @@
 {
   "name": "@netil/yaong",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A panel beside the Claude Code conversation: watch each turn's steps, tools, tokens, cost, and usage limits; hand work between sessions, coding agents, and browser tabs; and continue in a fresh session before the context fills (/yaong)",
   "keywords": [
     "claude-code",
