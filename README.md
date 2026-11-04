@@ -7,10 +7,6 @@
 
 Yaong is a panel beside your [Claude Code](https://claude.com/claude-code) conversation that shows, turn by turn, where the time and money went.
 
-<p align="center">
-  <img src="docs/images/characters.gif" alt="The walk view's cat and dog: running, thinking, working, failing, and sleeping">
-</p>
-
 Yaong (야옹) is the Korean word for a cat's meow: a cat that sits next to the conversation and watches every turn.
 
 ## Install
@@ -30,17 +26,16 @@ Run `/reload-plugins`, then open the panel with `/yaong`. It also opens by itsel
 - **Walk view**: press `v` and a pixel cat or dog walks through the turn. Its mood shows context, cost, and usage limits at a glance
 - **Open sessions**: send this session's handoff to another Claude Code session or a coding agent (Codex, OpenCode, ...), or pull theirs here
 - **Browser tabs**: your open tabs, numbered. Say "B3" or "the GitHub PR tab" and the model works in that tab
-- **Minimized view**: two rows above the prompt when you need the width back
 - **Terminal and desktop app**: the same panel in both
 
 <p align="center">
   <img src="docs/images/panel.gif" alt="The whole panel while a subagent is spawned: the turn flow, then the walk view with the cat, then with the dog" width="560">
 </p>
 
-Minimized, it shrinks to two rows above the prompt:
+The walk view's cat and dog: running, thinking, working, failing, and sleeping.
 
 <p align="center">
-  <img src="docs/images/panel-minimized.gif" alt="The minimized panel: two rows above the prompt with the turn's steps and the running tool" width="700">
+  <img src="docs/images/characters.gif" alt="The walk view's cat and dog: running, thinking, working, failing, and sleeping">
 </p>
 
 See the [manual](docs/MANUAL.md) for the layout, shortcuts, advice rules, and [settings](docs/MANUAL.md#settings).
