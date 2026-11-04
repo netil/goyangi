@@ -5,45 +5,13 @@
   </picture>
 </h1>
 
-Yaong is a panel that sits next to your [Claude Code](https://claude.com/claude-code) conversation and shows, turn by turn, where the time and money went: every model request, tool call, and subagent, with tokens and cost, as it happens. Open it with `/yaong`. It opens on its own when a session starts.
+Yaong is a panel beside your [Claude Code](https://claude.com/claude-code) conversation that shows, turn by turn, where the time and money went.
 
 <p align="center">
   <img src="docs/images/characters.gif" alt="The walk view's cat and dog: running, thinking, working, failing, and sleeping">
 </p>
 
-## The name
-
-Yaong (야옹) is the sound a cat makes in Korean, a meow. A cat that lives beside your conversation and keeps an eye on every turn: that is the idea.
-
-## Why Yaong
-
-- **Turn by turn, not just agent by agent.** Each turn is split into its model request steps, and every step carries its tokens, cost, and share of the turn's time. The session map lines the turns up so you can compare them and replay any one
-- **Nothing to run beside it.** No server, database, or browser tab: it is one plugin, drawn inside Claude Code next to the conversation. Minimize it to two rows above the prompt when you need the width back
-- **It tells you what to do next.** Gauges forecast when the 5h and 7d usage limits will run out at the current pace, and rule-based advice flags repeated failures, cache hit drops, and files read again for nothing. Alerts fire on stalled tools and costly turns. All of it is computed locally and costs no tokens
-- **Terminal and desktop app.** The same panel runs in the terminal and in the Claude Code desktop app, where it is drawn as SVG
-- **A walk view you read at a glance.** Press `v` and a pixel cat or dog walks through the turn's steps. Its eyes grow tired as context fills, a `$` mark over its back grows to `s$` and `sS$` as the turn costs more, it walks into dusk and night as the 5h limit nears, and raises a `!` when there is advice. Pick a past turn in the session map to watch it replayed
-
-## What's in the panel
-
-- **Turn flow**: model request steps and the tool calls and subagents between them, in order, with a time share bar
-- **Advisor**: gauges for context, cache hit rate, and usage limits (5h, 7d), plus the advice above
-- **Session map**: one row per turn with its tool sequence, time, and cost. Click a turn to replay its flow
-- **Open sessions**: the other Claude Code sessions open on this machine, and coding agents such as Codex or OpenCode running in cmux. Send this session's handoff to one, or pull its handoff here, by button or by number in the conversation
-- **Browser tabs**: open tabs of Chrome, Brave, Edge, Arc, Vivaldi, Chromium, ego lite, Safari, Firefox, Whale, and any other installed browser that scripts its tabs, numbered so you can say "the GitHub PR tab" or "B3" and the model knows which one you mean
-- **Session log**: switch between key events and the full event log
-- **Walk view**: the turn flow as a side-scrolling scene with a pixel cat or dog whose mood carries the session's numbers
-
-<p align="center">
-  <img src="docs/images/panel.gif" alt="The whole panel while a subagent is spawned: the turn flow, then the walk view with the cat, then with the dog, and around again" width="560">
-</p>
-
-The whole panel while a subagent is spawned: the turn flow, then the walk view with the cat and with the dog, in turn. Minimized, it shrinks to two rows above the prompt:
-
-<p align="center">
-  <img src="docs/images/panel-minimized.gif" alt="The minimized panel: two rows above the prompt with the turn's steps and the running tool" width="700">
-</p>
-
-See the [manual](docs/MANUAL.md) for the layout, shortcuts, and advice rules.
+Yaong (야옹) is the Korean word for a cat's meow: a cat that sits next to the conversation and watches every turn.
 
 ## Install
 
@@ -52,7 +20,30 @@ claude plugin marketplace add netil/yaong
 claude plugin install yaong@yaong --scope user
 ```
 
-Run `/reload-plugins` in a session, then open the panel with `/yaong`. New versions install automatically when a session starts (turn this off in the settings screen). Settings are in the panel's settings screen (`=` in the header); see the [manual](docs/MANUAL.md#settings).
+Run `/reload-plugins`, then open the panel with `/yaong`. It also opens by itself when a session starts. New versions install automatically (turn this off in the settings screen, `=` in the header).
+
+## Features
+
+- **Turn flow**: every model request, tool call, and subagent of the turn in order, with tokens, cost, and a time share bar
+- **Gauges and advice**: context, cache hit rate, and the 5h and 7d usage limits with a forecast. Rule-based advice flags repeated failures, cache drops, and files read again. All computed locally, no tokens spent
+- **Session map and log**: one row per turn to compare, and a replay of any recent turn. The log switches between key events and everything
+- **Walk view**: press `v` and a pixel cat or dog walks through the turn. Its mood shows context, cost, and usage limits at a glance
+- **Open sessions**: send this session's handoff to another Claude Code session or a coding agent (Codex, OpenCode, ...), or pull theirs here
+- **Browser tabs**: your open tabs, numbered. Say "B3" or "the GitHub PR tab" and the model works in that tab
+- **Minimized view**: two rows above the prompt when you need the width back
+- **Terminal and desktop app**: the same panel in both
+
+<p align="center">
+  <img src="docs/images/panel.gif" alt="The whole panel while a subagent is spawned: the turn flow, then the walk view with the cat, then with the dog" width="560">
+</p>
+
+Minimized, it shrinks to two rows above the prompt:
+
+<p align="center">
+  <img src="docs/images/panel-minimized.gif" alt="The minimized panel: two rows above the prompt with the turn's steps and the running tool" width="700">
+</p>
+
+See the [manual](docs/MANUAL.md) for the layout, shortcuts, advice rules, and [settings](docs/MANUAL.md#settings).
 
 ## Requirements
 
