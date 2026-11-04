@@ -23,8 +23,15 @@
     "type": "git",
     "url": "git+https://github.com/netil/yaong.git"
   },
-  "private": true,
   "types": "./types/index.d.ts",
+  "files": [
+    ".claude-plugin",
+    "hooks",
+    "icons",
+    "types",
+    "docs",
+    "CHANGELOG.md"
+  ],
   "engines": {
     "node": ">=24"
   },
