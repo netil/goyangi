@@ -22,19 +22,17 @@ Run `/reload-plugins`, then open the panel with `/goyangi`. It also opens by its
 
 ### Usage
 
-Work as usual. The panel updates with every turn. Press `v` to switch between the turn flow and the walk view, `-` to minimize, `x` to close.
-
-You can also point at what the panel shows from the conversation. Sessions and browser tabs have numbers, so a short prompt is enough:
+Sessions and browser tabs have numbers, so a short prompt is enough:
 
 ```text
 send this to session 2
 pull from 1
 Summarize the docs tab
-B3 작업해줘
+Work in tab B3
 ```
 
 - `send this to session 2` passes this session's handoff note to the other session. `pull from 1` asks session 1 for its handoff
-- `Summarize the docs tab` and `B3 작업해줘` work in that very browser tab, with your sign-ins. The numbers come from the Open sessions and Browser tabs boxes
+- `Summarize the docs tab` and `Work in tab B3` work in that very browser tab, with your sign-ins. The numbers come from the Open sessions and Browser tabs boxes
 - When context passes the alert threshold, click `Continue in a fresh session` and the work carries on in a new session from a handoff note
 
 ## Features
