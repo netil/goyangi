@@ -2,7 +2,7 @@ import { test, expect } from 'claude-code/testing'
 import { mapTokens, weightBar, archiveTurn } from '../hooks/state'
 
 declare const setTimeout: (fn: () => void, ms: number) => unknown
-const PANE = { plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 160, rows: 70 } as never } as const
+const PANE = { plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 160, rows: 70 } as never } as const
 const tick = (ms = 0) => new Promise<void>(r => setTimeout(r, ms))
 
 test('block compression: runs of 3 or more merge, and overflow keeps both ends', async () => {

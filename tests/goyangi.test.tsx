@@ -18,7 +18,7 @@ test('tool calls are drawn in the panel', async ($, on) => {
   on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false } as never }))
   await $.tool.call({ tool: 'Bash', command: 'git status' })
   for (const surface of ['terminal', 'desktop'] as const) {
-    const ui = await $.ui.mount({ plugin: 'yaong', surface, component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 100, rows: 40 } as never })
+    const ui = await $.ui.mount({ plugin: 'goyangi', surface, component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 100, rows: 40 } as never })
     expect(await ui.find({ text: /git status/ })).toBeDefined()
     expect(await ui.find({ text: /tools 1/ })).toBeDefined()
     await ui.unmount()
@@ -39,12 +39,12 @@ test('handing work to another session shows in the turn flow: the branch names t
   on('turn.step', async function* ($, e) {
     return { turnId: e.turnId, index: e.index, answer: '', toolUses: [], stopReason: 'tool_use', usage: { input_tokens: 10, output_tokens: 10, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, model: 'm' } } as never
   })
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 60 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 60 } as never })
   await $.turn.start({ text: 'hand this to api', turnId: 't1' } as never)
   for await (const _ of $.turn.step({ turnId: 't1', index: 0, model: 'm', effort: 'high', messageCount: 1 } as never)) { /* drain */ }
-  await $.tool.call({ tool: 'mcp__yaong__sessions', action: 'list' } as never)
-  await $.tool.call({ tool: 'mcp__yaong__sessions', action: 'send', to: 2 } as never)
-  await $.tool.call({ tool: 'mcp__yaong__sessions', action: 'send', to: 7 } as never)
+  await $.tool.call({ tool: 'mcp__goyangi__sessions', action: 'list' } as never)
+  await $.tool.call({ tool: 'mcp__goyangi__sessions', action: 'send', to: 2 } as never)
+  await $.tool.call({ tool: 'mcp__goyangi__sessions', action: 'send', to: 7 } as never)
   // The branch under the step: the other session's name and number, then whether it got there
   expect(await ui.find({ type: 'Text', text: /^⇢ api #2$/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^ sent$/ })).toBeDefined()
@@ -59,7 +59,7 @@ test('handing work to another session shows in the turn flow: the branch names t
 test('a turn that starts from another session\'s handoff names the sender on its prompt node (⇠ docs-1)', async ($, on) => {
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
   on('turn.start', ($, e) => ({ turnId: e.turnId }))
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 60 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 60 } as never })
   await $.turn.start({ text: 'Handoff from Claude Code session "docs-1" (other) in /x.\nIts current request: "fix it"', turnId: 't1' } as never)
   expect(await ui.find({ text: /⇠ docs-1/ })).toBeDefined()
   await ui.unmount()
@@ -80,12 +80,12 @@ test('a pull waits for its handoff, then points at the turn it arrived as (↩ T
     return { turnId: e.turnId, index: e.index, answer: '', toolUses: [], stopReason: 'tool_use', usage: { input_tokens: 10, output_tokens: 10, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, model: 'm' } } as never
   })
   on('turn.complete', () => ({ text: '' }))
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 60 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 60 } as never })
   await $.turn.start({ text: 'get the docs handoff', turnId: 't1' } as never)
   for await (const _ of $.turn.step({ turnId: 't1', index: 0, model: 'm', effort: 'high', messageCount: 1 } as never)) { /* drain */ }
-  await $.tool.call({ tool: 'mcp__yaong__sessions', action: 'pull', from: 1 } as never)
-  await $.tool.call({ tool: 'mcp__yaong__sessions', action: 'pull', from: 1, to: 2 } as never)
-  await $.tool.call({ tool: 'mcp__yaong__sessions', action: 'send', to: 2 } as never)
+  await $.tool.call({ tool: 'mcp__goyangi__sessions', action: 'pull', from: 1 } as never)
+  await $.tool.call({ tool: 'mcp__goyangi__sessions', action: 'pull', from: 1, to: 2 } as never)
+  await $.tool.call({ tool: 'mcp__goyangi__sessions', action: 'send', to: 2 } as never)
   // Only the pull whose note comes back here waits
   expect((await ui.findAll({ type: 'Text', text: /^ waiting$/ })).length).toBe(1)
   expect((await ui.findAll({ type: 'Text', text: /^ sent$/ })).length).toBe(2)
@@ -108,7 +108,7 @@ test('subagent boxes and status', async ($, on) => {
   on('tool.call', { tool: 'Read' }, () => ({ result: {} as never }))
   await $.agent.spawn({ prompt: 'x', description: 'find files', subagentType: 'Explore' } as never)
   await $.tool.call({ tool: 'Read', file_path: '/a/b/notes.md', agentId: 'a1' } as never)
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 100, rows: 40 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 100, rows: 40 } as never })
   expect(await ui.find({ text: /^Explore$/ })).toBeDefined()
   expect(await ui.find({ text: /1 running \/ 1/ })).toBeDefined()
   expect(await ui.find({ text: /notes\.md/ })).toBeDefined()
@@ -119,7 +119,7 @@ test('a tool call ending in an exception also restores the state', async ($, on)
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
   on('tool.call', { tool: 'Bash' }, () => { throw new Error('boom') })
   await $.tool.call({ tool: 'Bash', command: 'false' }).catch(() => undefined)
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 100, rows: 40 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 100, rows: 40 } as never })
   expect(await ui.find({ text: /^○ idle$/ })).toBeDefined()
   await ui.unmount()
 })

@@ -1,7 +1,7 @@
 import { test, expect } from 'claude-code/testing'
 
 declare const setTimeout: (fn: () => void, ms: number) => unknown
-const PANE = { plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 140, rows: 60 } as never } as const
+const PANE = { plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 140, rows: 60 } as never } as const
 
 test('tool calls are drawn in order in the session map and turn flow', async ($, on) => {
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))

@@ -2,7 +2,7 @@ import { test, expect, mock } from 'claude-code/testing'
 import { limitEta, isStalled, cacheDropped, ctxParts, upsertRecord, historySummary, WINDOW_MS, pickKids } from '../hooks/state'
 
 declare const setTimeout: (fn: () => void, ms: number) => unknown
-const PANE = { plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 140, rows: 60 } as never } as const
+const PANE = { plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 140, rows: 60 } as never } as const
 const tick = (ms = 0) => new Promise<void>(r => setTimeout(r, ms))
 const iso = (ms: number) => new Date(ms).toISOString()
 

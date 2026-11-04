@@ -3,7 +3,7 @@ import { test, expect } from 'claude-code/testing'
 // The test environment has setTimeout, but the types for hooks modules don't, so it's declared only here.
 declare const setTimeout: (fn: () => void, ms: number) => unknown
 
-const PANE = { plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 140, rows: 60 } as never } as const
+const PANE = { plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 140, rows: 60 } as never } as const
 const LONG = 'npx -y -p typescript@5.6.3 tsc -p /very/long/path/to/some/project/tsconfig.json --noEmit --pretty false'
 
 test('a running tool shows a full command card, hidden when done and shown only on hover', async ($, on) => {

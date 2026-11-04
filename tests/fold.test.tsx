@@ -2,8 +2,8 @@ import { test, expect, mock } from 'claude-code/testing'
 // The test environment has setTimeout, but the types for hooks modules don't, so it's declared only here.
 declare const setTimeout: (fn: () => void, ms: number) => unknown
 
-const PANE = { plugin: 'yaong', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 50 } as never } as const
-const BAND = { plugin: 'yaong', component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 100 } as never, viewport: { columns: 120, rows: 50 } as never } as const
+const PANE = { plugin: 'goyangi', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 50 } as never } as const
+const BAND = { plugin: 'goyangi', component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 100 } as never, viewport: { columns: 120, rows: 50 } as never } as const
 
 test('section fold and close buttons', async ($, on) => {
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
@@ -19,7 +19,7 @@ test('section fold and close buttons', async ($, on) => {
     await ui.press({ key: 'close' })
     await ui.unmount()
   }
-  expect(closed).toEqual(['yaong', 'yaong'])
+  expect(closed).toEqual(['goyangi', 'goyangi'])
 })
 
 test('folding closes the panel into two rows above the prompt, and [□] reopens it', async ($, on) => {
@@ -32,7 +32,7 @@ test('folding closes the panel into two rows above the prompt, and [□] reopens
   const pane = await $.ui.mount({ ...PANE, surface: 'terminal' })
   await pane.press({ key: 'fold-all' })
   await pane.unmount()
-  expect(calls).toEqual(['close:yaong'])
+  expect(calls).toEqual(['close:goyangi'])
 
   const band = await $.ui.mount({ ...BAND, surface: 'terminal' })
   expect(await band.find({ type: 'Text', text: /step 0 · tool 0/ })).toBeDefined()
@@ -59,7 +59,7 @@ test('folding closes the panel into two rows above the prompt, and [□] reopens
   // Row 1 is the simplified walk: with no turn yet it waits for the next prompt
   expect(await band.find({ text: /waiting for the next prompt/ })).toBeDefined()
   await band.press({ key: 'expand' })
-  expect(calls).toEqual(['close:yaong', 'open:yaong:110'])
+  expect(calls).toEqual(['close:goyangi', 'open:goyangi:110'])
   expect(await band.find({ type: 'Text', text: /step 0 · tool 0/ })).toBeUndefined()
   await band.unmount()
 })
@@ -351,30 +351,30 @@ test('sessions box: lists the other open sessions; send passes this session\'s h
   expect(sent.at(-1)!.text).toContain('make it faster')
   await ui.press({ key: 'peer-pull-other' })
   await new Promise<void>(r => setTimeout(r, 0))
-  expect(sent.at(-1)!.text.startsWith('[yaong:pull] me')).toBe(true)
+  expect(sent.at(-1)!.text.startsWith('[goyangi:pull] me')).toBe(true)
   expect(toasts.some(t => /Sent this session's handoff to docs-1/.test(t))).toBe(true)
   // A refused send says why instead of claiming success
   refuse = 'denied by auto mode'
   await ui.press({ key: 'peer-send-other' })
   await new Promise<void>(r => setTimeout(r, 0))
-  expect(toasts.at(-1)).toBe('Yaong · Not sent: denied by auto mode')
+  expect(toasts.at(-1)).toBe('Goyangi · Not sent: denied by auto mode')
   refuse = ''
   // The sessions tool works by those numbers: send to 2, pull 1's handoff over to 2, and a missing number lists the sessions
-  expect(String((await $.tool.call({ tool: 'mcp__yaong__sessions', action: 'send', to: 2 } as never)).result)).toBe("Sent this session's handoff to api")
+  expect(String((await $.tool.call({ tool: 'mcp__goyangi__sessions', action: 'send', to: 2 } as never)).result)).toBe("Sent this session's handoff to api")
   expect(sent.at(-1)!.to).toBe('third')
-  expect(String((await $.tool.call({ tool: 'mcp__yaong__sessions', action: 'pull', from: 1, to: 2 } as never)).result)).toBe('Asked docs-1 to send its handoff to api')
+  expect(String((await $.tool.call({ tool: 'mcp__goyangi__sessions', action: 'pull', from: 1, to: 2 } as never)).result)).toBe('Asked docs-1 to send its handoff to api')
   expect(sent.at(-1)!.to).toBe('other')
-  expect(sent.at(-1)!.text.startsWith('[yaong:pull] third')).toBe(true)
-  expect(String((await $.tool.call({ tool: 'mcp__yaong__sessions', action: 'send', to: 5 } as never)).result)).toContain('1. docs-1')
+  expect(sent.at(-1)!.text.startsWith('[goyangi:pull] third')).toBe(true)
+  expect(String((await $.tool.call({ tool: 'mcp__goyangi__sessions', action: 'send', to: 5 } as never)).result)).toContain('1. docs-1')
   // Numbers stay: docs-1 closes and an older-started session appears, yet api is still 2, the newcomer is 3, and 1 is not reused
   agents = [agents[0]!, agents[1]!, { sessionId: 'late', name: 'web', cwd: '/Users/u/dev/web', status: 'idle', kind: 'interactive', startedAt: 5 }]
-  expect(String((await $.tool.call({ tool: 'mcp__yaong__sessions', action: 'list' } as never)).result).split('\n').map(l => l.split(' ').slice(0, 2).join(' '))).toEqual(['2. api', '3. web'])
-  expect(String((await $.tool.call({ tool: 'mcp__yaong__sessions', action: 'send', to: 2 } as never)).result)).toBe("Sent this session's handoff to api")
-  expect(String((await $.tool.call({ tool: 'mcp__yaong__sessions', action: 'send', to: 1 } as never)).result)).toMatch(/^No session 1/)
+  expect(String((await $.tool.call({ tool: 'mcp__goyangi__sessions', action: 'list' } as never)).result).split('\n').map(l => l.split(' ').slice(0, 2).join(' '))).toEqual(['2. api', '3. web'])
+  expect(String((await $.tool.call({ tool: 'mcp__goyangi__sessions', action: 'send', to: 2 } as never)).result)).toBe("Sent this session's handoff to api")
+  expect(String((await $.tool.call({ tool: 'mcp__goyangi__sessions', action: 'send', to: 1 } as never)).result)).toMatch(/^No session 1/)
   agents = [agents[0]!, agents[1]!, { sessionId: 'other', name: 'docs-1', cwd: '/Users/u/dev/docs', status: 'idle', kind: 'interactive', startedAt: 20 }]
   await ui.unmount()
   // A pull request arriving from a peer: answered with this session's note, and the prompt never enters
-  const r = await $.prompt.submit({ text: '[yaong:pull] asker\nplease', origin: { kind: 'peer' }, wait: false } as never)
+  const r = await $.prompt.submit({ text: '[goyangi:pull] asker\nplease', origin: { kind: 'peer' }, wait: false } as never)
   await new Promise<void>(r => setTimeout(r, 0))
   expect((r as { drop?: string }).drop).toBeDefined()
   expect(sent.at(-1)!.to).toBe('asker')
@@ -382,7 +382,7 @@ test('sessions box: lists the other open sessions; send passes this session\'s h
   // A handoff arriving from a peer: a toast names the sender, and the note still reaches the model
   const h = await $.prompt.submit({ text: 'Handoff from Claude Code session "docs-1" (other) in /x.', origin: { kind: 'peer' }, wait: false } as never)
   expect((h as { text?: string }).text).toContain('Handoff from')
-  expect(toasts.at(-1)).toBe('Yaong · Received a handoff from docs-1')
+  expect(toasts.at(-1)).toBe('Goyangi · Received a handoff from docs-1')
 })
 
 test('sessions box: coding agents in cmux terminals are listed after the Claude sessions; send types a line pointing at a note file, pull brings their screen here', async ($, on) => {
@@ -412,7 +412,7 @@ test('sessions box: coding agents in cmux terminals are listed after the Claude 
   await ui.press({ key: 'peer-send-cmux:workspace:2:surface:5' })
   await new Promise<void>(r => setTimeout(r, 0))
   const file = Object.keys(files)[0]!
-  expect(file).toMatch(/^\/tmp\/t\/yaong\/handoff-\d+\.md$/)
+  expect(file).toMatch(/^\/tmp\/t\/goyangi\/handoff-\d+\.md$/)
   expect(files[file]).toContain('make it faster')
   expect(runs.find(a => a[1] === 'send')).toEqual(['cmux', 'send', '--workspace', 'workspace:2', '--surface', 'surface:5', `Read the handoff note at ${file} and continue from it.`])
   expect(runs.find(a => a[1] === 'send-key')!.at(-1)).toBe('enter')
@@ -420,7 +420,7 @@ test('sessions box: coding agents in cmux terminals are listed after the Claude 
   await new Promise<void>(r => setTimeout(r, 0))
   expect(prompts.at(-1)).toContain('parser fixed, tests left')
   // The tool returns the screen instead of starting a prompt
-  expect(String((await $.tool.call({ tool: 'mcp__yaong__sessions', action: 'pull', from: 1 } as never)).result)).toContain('Handoff from codex')
+  expect(String((await $.tool.call({ tool: 'mcp__goyangi__sessions', action: 'pull', from: 1 } as never)).result)).toContain('Handoff from codex')
   await ui.unmount()
 })
 
@@ -441,30 +441,30 @@ test('browser tabs box: tabs numbered by browser letter (B1, B2), each keeping i
   expect(await ui.find({ type: 'Text', text: /BROWSER TABS · B Brave 3/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^B2  ● PR #12 +github.com$/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^B1  ○ Docs home +docs.example.com$/ })).toBeDefined()
-  const read = String((await $.tool.call({ tool: 'mcp__yaong__browser_tabs', action: 'read', tab: 'b2' } as never)).result)
+  const read = String((await $.tool.call({ tool: 'mcp__goyangi__browser_tabs', action: 'read', tab: 'b2' } as never)).result)
   expect(read).toContain('https://github.com/o/r/pull/12')
   // Reading switches nothing in Chrome
   expect(runs.some(a => a[2]?.includes('set active tab index'))).toBe(false)
-  expect(String((await $.tool.call({ tool: 'mcp__yaong__browser_tabs', action: 'focus', tab: 'mail' } as never)).result)).toBe('Brought tab B3 to the front')
+  expect(String((await $.tool.call({ tool: 'mcp__goyangi__browser_tabs', action: 'focus', tab: 'mail' } as never)).result)).toBe('Brought tab B3 to the front')
   expect(runs.at(-1)![2]).toContain('tell application "Brave Browser"')
   expect(runs.at(-1)![2]).toContain('set active tab index of window 2 to 1')
-  expect(String((await $.tool.call({ tool: 'mcp__yaong__browser_tabs', action: 'read', tab: 'B9' } as never)).result)).toContain('B1 Docs home')
+  expect(String((await $.tool.call({ tool: 'mcp__goyangi__browser_tabs', action: 'read', tab: 'B9' } as never)).result)).toContain('B1 Docs home')
   // Words: one match reads it, several come back as candidates
-  expect(String((await $.tool.call({ tool: 'mcp__yaong__browser_tabs', action: 'read', tab: 'github pull' } as never)).result)).toContain('Tab B2: PR #12')
-  expect(String((await $.tool.call({ tool: 'mcp__yaong__browser_tabs', action: 'read', tab: 'example' } as never)).result)).toMatch(/^Several tabs match/)
+  expect(String((await $.tool.call({ tool: 'mcp__goyangi__browser_tabs', action: 'read', tab: 'github pull' } as never)).result)).toContain('Tab B2: PR #12')
+  expect(String((await $.tool.call({ tool: 'mcp__goyangi__browser_tabs', action: 'read', tab: 'example' } as never)).result)).toMatch(/^Several tabs match/)
   // run: JavaScript goes to that exact tab as an argument, so quotes reach the browser untouched
   const js = `document.querySelector("h1").innerText + 'x'`
-  expect(String((await $.tool.call({ tool: 'mcp__yaong__browser_tabs', action: 'run', tab: 'mail', js } as never)).result)).toMatch(/^Tab B3: Mail/)
+  expect(String((await $.tool.call({ tool: 'mcp__goyangi__browser_tabs', action: 'run', tab: 'mail', js } as never)).result)).toMatch(/^Tab B3: Mail/)
   expect(runs.at(-1)).toContain(js)
   expect(runs.at(-1)!.join(' ')).toContain('tell application "Brave Browser" to execute tab 1 of window 2 javascript (item 1 of argv)')
-  expect(String((await $.tool.call({ tool: 'mcp__yaong__browser_tabs', action: 'run', tab: 'mail' } as never)).result)).toMatch(/^run needs js/)
+  expect(String((await $.tool.call({ tool: 'mcp__goyangi__browser_tabs', action: 'run', tab: 'mail' } as never)).result)).toMatch(/^run needs js/)
   // Numbers stay with their tabs: Docs home closes, a new tab opens before PR #12, Mail moves to window 1.
   // B2 is still PR #12 (now at window 1 tab 2), B3 still Mail, the new tab is B4, and B1 is gone, not reused
   brave = '1\t1\tfalse\t20\tNew\thttps://new.example.com/\n1\t2\ttrue\t12\tPR #12\thttps://github.com/o/r/pull/12\n1\t3\tfalse\t13\tMail\thttps://mail.example.com/\n'
-  expect(String((await $.tool.call({ tool: 'mcp__yaong__browser_tabs', action: 'list' } as never)).result).split('\n').map(l => l.split(' ')[0])).toEqual(['B2', 'B3', 'B4'])
-  await $.tool.call({ tool: 'mcp__yaong__browser_tabs', action: 'run', tab: 'B3', js: '1' } as never)
+  expect(String((await $.tool.call({ tool: 'mcp__goyangi__browser_tabs', action: 'list' } as never)).result).split('\n').map(l => l.split(' ')[0])).toEqual(['B2', 'B3', 'B4'])
+  await $.tool.call({ tool: 'mcp__goyangi__browser_tabs', action: 'run', tab: 'B3', js: '1' } as never)
   expect(runs.at(-1)!.join(' ')).toContain('execute tab 3 of window 1 javascript')
-  expect(String((await $.tool.call({ tool: 'mcp__yaong__browser_tabs', action: 'read', tab: 'B1' } as never)).result)).toMatch(/^No tab matches "B1"/)
+  expect(String((await $.tool.call({ tool: 'mcp__goyangi__browser_tabs', action: 'read', tab: 'B1' } as never)).result)).toMatch(/^No tab matches "B1"/)
   await ui.unmount()
 })
 
@@ -504,7 +504,7 @@ test('browser tabs past their row setting scroll: a scrollbar appears and the wh
   expect(await ui.find({ type: 'Client', key: 'tabs-sb' })).toBeDefined()
   expect(await first()).toBe('B1')
   // The wheel over the box moves it down a row, and back up from the same spot
-  const wheel = (fromBottom: number, by: number) => $.ui.scroll({ component: 'Pane', requestId: 'yaong', offset: 0, by, bodyRows: 70, contentRows: 70, origin: { kind: 'person' }, pointer: { column: 100, row: 70 - 1 - fromBottom } } as never) // the right half: side by side, Browser tabs is the right box
+  const wheel = (fromBottom: number, by: number) => $.ui.scroll({ component: 'Pane', requestId: 'goyangi', offset: 0, by, bodyRows: 70, contentRows: 70, origin: { kind: 'person' }, pointer: { column: 100, row: 70 - 1 - fromBottom } } as never) // the right half: side by side, Browser tabs is the right box
   let at = -1
   for (let fromBottom = 0; fromBottom < 70 && at < 0; fromBottom++) {
     await wheel(fromBottom, 1)
@@ -545,7 +545,7 @@ test('row icons: on Ghostty a browser tab row starts with its browser\'s app ico
   await ui.unmount()
 })
 
-test('header logo: the cat drawing the plugin ships in icons/yaong.png replaces the 🐱 emoji where an image can be drawn', async ($, on) => {
+test('header logo: the cat drawing the plugin ships in icons/goyangi.png replaces the 🐱 emoji where an image can be drawn', async ($, on) => {
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
   on('session.id', () => ({ value: 'me' }) as never)
   mock.env(on, { TERM_PROGRAM: 'ghostty', TMPDIR: '/tmp/t/' })
@@ -559,9 +559,9 @@ test('header logo: the cat drawing the plugin ships in icons/yaong.png replaces 
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal', viewport: { columns: 100, rows: 40 } as never })
   await ui.press({ key: 'peer-refresh' })
   for (let i = 0; i < 5; i++) await new Promise<void>(r => setTimeout(r, 0))
-  expect(reads.some(p => p.endsWith('/icons/yaong.png'))).toBe(true)
-  expect(await ui.find({ type: 'Image', alt: 'Yaong' } as never)).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: ' 🐱 Yaong ' })).toBeUndefined()
+  expect(reads.some(p => p.endsWith('/icons/goyangi.png'))).toBe(true)
+  expect(await ui.find({ type: 'Image', alt: 'Goyangi' } as never)).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: ' 🐱 Goyangi ' })).toBeUndefined()
   await ui.unmount()
 })
 
@@ -630,17 +630,17 @@ test('fresh session: past the context alert a one-click row appears; it asks the
   expect(await ui.find({ type: 'Button', key: 'fresh-go' })).toBeDefined()
   await ui.press({ key: 'fresh-go' })
   await clock.advance(10)
-  expect(prompts.at(-1)).toContain('Write a handoff note to /tmp/t/yaong/handoff-old-id.md')
+  expect(prompts.at(-1)).toContain('Write a handoff note to /tmp/t/goyangi/handoff-old-id.md')
   expect(await ui.find({ type: 'Text', text: /Writing the handoff note/ })).toBeDefined()
   // The model writes the note and the turn ends: /clear runs after it
-  files['/tmp/t/yaong/handoff-old-id.md'] = '# Handoff\nnext: add tests'
+  files['/tmp/t/goyangi/handoff-old-id.md'] = '# Handoff\nnext: add tests'
   await $.turn.complete({ turnId: 't1', answer: 'handoff written', durationMs: 10, isAborted: false, reason: 'answer' } as never)
   await clock.advance(1000)
   expect(commands).toEqual(['clear'])
   // The new session's first prompt points at the note and the old session
   await $.session.start({ cwd: '/x', source: 'clear' } as never)
   await clock.advance(1000)
-  expect(prompts.at(-1)).toContain('Read the handoff note at /tmp/t/yaong/handoff-old-id.md')
+  expect(prompts.at(-1)).toContain('Read the handoff note at /tmp/t/goyangi/handoff-old-id.md')
   expect(prompts.at(-1)).toContain('claude --resume old-id')
   await ui.unmount()
 })
@@ -661,7 +661,7 @@ test('whole-panel scrollbar: a terminal panel taller than its window gets a bar 
   await tall.pointer({ type: 'down', x: 0, y: 11, button: 'left', in: 'pane-sb' } as never)
   await tall.pointer({ type: 'up', x: 0, y: 11, button: 'left', in: 'pane-sb' } as never)
   for (let i = 0; i < 20; i++) await tall.find({ key: 'pane-wrap' })
-  await $.ui.scroll({ component: 'Pane', requestId: 'yaong', offset: 0, by: 0, bodyRows: 12, contentRows: 200, origin: { kind: 'plugin', name: 'yaong' } } as never)
+  await $.ui.scroll({ component: 'Pane', requestId: 'goyangi', offset: 0, by: 0, bodyRows: 12, contentRows: 200, origin: { kind: 'plugin', name: 'goyangi' } } as never)
   expect(scrolls.at(-1)!.offset).toBeGreaterThan(5)
   await tall.unmount()
   // Content that fits its window: no bar

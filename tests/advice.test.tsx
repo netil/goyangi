@@ -3,7 +3,7 @@ import { advise, CACHE_TTL_MS } from '../hooks/state'
 import type { FlowItem } from '../types'
 
 declare const setTimeout: (fn: () => void, ms: number) => unknown
-const PANE = { plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 140, rows: 60 } as never } as const
+const PANE = { plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 140, rows: 60 } as never } as const
 const tick = (ms = 0) => new Promise<void>(r => setTimeout(r, ms))
 const base = { flow: [] as FlowItem[], fails: {}, ctxPercent: 0, limits: [] }
 const step = (id: string, s: number, e: number, tokIn: number, tokCache: number): FlowItem => ({ id, kind: 'step', label: id, meta: '', ok: true, startedAt: s, endedAt: e, tokIn, tokCache })
@@ -95,7 +95,7 @@ test('the minimized row shows warning and tip counts as chips', async ($, on) =>
   const pane = await $.ui.mount(PANE)
   await pane.press({ key: 'fold-all' })
   await pane.unmount()
-  const band = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 120 } as never, viewport: { columns: 140, rows: 50 } as never })
+  const band = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 120 } as never, viewport: { columns: 140, rows: 50 } as never })
   expect(await band.find({ type: 'Text', text: /^⚠1$/ })).toBeDefined()
   await band.unmount()
 })

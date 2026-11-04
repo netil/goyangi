@@ -1,7 +1,7 @@
 {
-  "name": "@netil/yaong",
+  "name": "goyangi",
   "version": "1.0.1",
-  "description": "A panel beside the Claude Code conversation: watch each turn's steps, tools, tokens, cost, and usage limits; hand work between sessions, coding agents, and browser tabs; and continue in a fresh session before the context fills (/yaong)",
+  "description": "A panel beside the Claude Code conversation: watch each turn's steps, tools, tokens, cost, and usage limits; hand work between sessions, coding agents, and browser tabs; and continue in a fresh session before the context fills (/goyangi)",
   "keywords": [
     "claude-code",
     "claude-code-plugin",
@@ -13,15 +13,15 @@
     "subagents",
     "pixel-art"
   ],
-  "homepage": "https://github.com/netil/yaong#readme",
+  "homepage": "https://github.com/netil/goyangi#readme",
   "bugs": {
-    "url": "https://github.com/netil/yaong/issues"
+    "url": "https://github.com/netil/goyangi/issues"
   },
   "license": "MIT",
   "author": "netil",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/netil/yaong.git"
+    "url": "git+https://github.com/netil/goyangi.git"
   },
   "types": "./types/index.d.ts",
   "files": [

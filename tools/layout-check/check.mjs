@@ -14,7 +14,7 @@ import path from 'node:path'
 const cells = s => [...s].reduce((n, ch) => n + (/\p{Mark}/u.test(ch) ? 0 : eastAsianWidth(ch.codePointAt(0))), 0)
 const HERE = path.dirname(new URL(import.meta.url).pathname)
 const ROOT = path.resolve(HERE, '../..')
-const OUT = path.join(os.tmpdir(), 'yaong-layout-check.mjs')
+const OUT = path.join(os.tmpdir(), 'goyangi-layout-check.mjs')
 const args = process.argv.slice(2).map(Number)
 const widths = args.length ? args : [26, 32, 40, 50, 60, 80, 100, 120]
 

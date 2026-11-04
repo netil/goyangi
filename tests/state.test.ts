@@ -72,15 +72,15 @@ test('fork lines: ▼ at both ends and the middle target; while running, dots sp
   expect(a(1, false)).toBe('──▶')
 })
 
-test('auto-update check: only when on, installed from the Yaong marketplace, and the interval has passed', () => {
+test('auto-update check: only when on, installed from the Goyangi marketplace, and the interval has passed', () => {
   const now = 10 * UPDATE_EVERY_MS
-  const installed = '/Users/u/.claude/plugins/cache/yaong/yaong/0.34.0'
+  const installed = '/Users/u/.claude/plugins/cache/goyangi/goyangi/0.34.0'
   expect(shouldCheckUpdate(true, installed, undefined, now)).toBe(true)
   expect(shouldCheckUpdate(true, installed, now - UPDATE_EVERY_MS, now)).toBe(true)
   expect(shouldCheckUpdate(true, installed, now - 1000, now)).toBe(false)
   expect(shouldCheckUpdate(false, installed, undefined, now)).toBe(false)
   // Dev copies (other marketplaces, --plugin-dir) are not checked
-  expect(shouldCheckUpdate(true, '/Users/u/.claude/plugins/cache/other-market/yaong/0.28.4', undefined, now)).toBe(false)
+  expect(shouldCheckUpdate(true, '/Users/u/.claude/plugins/cache/other-market/goyangi/0.28.4', undefined, now)).toBe(false)
   expect(shouldCheckUpdate(true, '/Users/u/dev/dari', undefined, now)).toBe(false)
 })
 

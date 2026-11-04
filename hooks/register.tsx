@@ -11,8 +11,8 @@ import {
 } from './state'
 import type { Browser, DotSeg, Pose, Station, StepMark } from './state'
 
-const PANE = 'yaong'
-const tree = atom({ plugin: 'yaong', key: 'tree' } as const, emptyTree())
+const PANE = 'goyangi'
+const tree = atom({ plugin: 'goyangi', key: 'tree' } as const, emptyTree())
 // Values an older version left in session state (no stops, turn) are dropped and we start fresh.
 const norm = (t: Tree): Tree => {
   if (!('turn' in t && 'stops' in t && 'server' in t && 'flow' in t && 'turns' in t && 'logTotal' in t)) return emptyTree()
@@ -22,59 +22,59 @@ const norm = (t: Tree): Tree => {
   const { archive: _old, ...rest } = u
   return { ...rest, toolTime: u.toolTime ?? {}, fails: u.fails ?? {}, turnTotal: u.turnTotal ?? u.turns.length }
 }
-const tick = atom({ plugin: 'yaong', key: 'tick' } as const, 0)
+const tick = atom({ plugin: 'goyangi', key: 'tick' } as const, 0)
 // Fold state. true means folded.
-const logEnd = atom({ plugin: 'yaong', key: 'logEnd' } as const, -1)
-const mapEnd = atom({ plugin: 'yaong', key: 'mapEnd' } as const, -1)
+const logEnd = atom({ plugin: 'goyangi', key: 'logEnd' } as const, -1)
+const mapEnd = atom({ plugin: 'goyangi', key: 'mapEnd' } as const, -1)
 // Last column to show in the flow chart (index of the next column). -1 follows the latest step.
-const flowPage = atom({ plugin: 'yaong', key: 'flowPage' } as const, -1)
+const flowPage = atom({ plugin: 'goyangi', key: 'flowPage' } as const, -1)
 // Last spot to show on the walk view main row (index of the next spot). -1 follows the latest spot.
-const questPage = atom({ plugin: 'yaong', key: 'questPage' } as const, -1)
+const questPage = atom({ plugin: 'goyangi', key: 'questPage' } as const, -1)
 // Agent detail view: keep only this agent id in the flow chart and log. Empty string means all.
-const focus = atom({ plugin: 'yaong', key: 'focus' } as const, '')
+const focus = atom({ plugin: 'goyangi', key: 'focus' } as const, '')
 // Flow chart columns with folded branches (main node id). Empty string means all columns are expanded.
-const kidsFolded = atom({ plugin: 'yaong', key: 'kidsFolded' } as const, '')
+const kidsFolded = atom({ plugin: 'goyangi', key: 'kidsFolded' } as const, '')
 // Past turn being replayed in the flow chart (turn id). Empty string follows the current turn.
-const viewTurn = atom({ plugin: 'yaong', key: 'viewTurn' } as const, '')
+const viewTurn = atom({ plugin: 'goyangi', key: 'viewTurn' } as const, '')
 // When the past turn replay opened (ms), so the walk view's pet starts its walk from the first spot
-const replayFrom = atom({ plugin: 'yaong', key: 'replayFrom' } as const, 0)
+const replayFrom = atom({ plugin: 'goyangi', key: 'replayFrom' } as const, 0)
 // Session map height (false: 4 rows; true: shares the remaining height with the session log) and weight bar basis (time/cost)
-const mapTall = atom({ plugin: 'yaong', key: 'mapTall' } as const, false)
-const mapBasis = atom({ plugin: 'yaong', key: 'mapBasis' } as const, 'time')
+const mapTall = atom({ plugin: 'goyangi', key: 'mapTall' } as const, false)
+const mapBasis = atom({ plugin: 'goyangi', key: 'mapBasis' } as const, 'time')
 // Whether all advice rows are expanded
-const tipsOpen = atom({ plugin: 'yaong', key: 'tipsOpen' } as const, true)
+const tipsOpen = atom({ plugin: 'goyangi', key: 'tipsOpen' } as const, true)
 // Session log: false shows key events only, true shows everything
-const logAll = atom({ plugin: 'yaong', key: 'logAll' } as const, true)
+const logAll = atom({ plugin: 'goyangi', key: 'logAll' } as const, true)
 // Flow chart archive of finished turns (replayed from the session map). Written only when a turn ends.
-const archive = atom({ plugin: 'yaong', key: 'archive' } as const, {} as Record<string, TurnSnap>)
+const archive = atom({ plugin: 'goyangi', key: 'archive' } as const, {} as Record<string, TurnSnap>)
 // Values changed in the settings screen (kept across sessions as 'prefs' in $.store) and whether the settings screen is open.
-const prefs = atom({ plugin: 'yaong', key: 'prefs' } as const, {} as Prefs)
-const settingsOpen = atom({ plugin: 'yaong', key: 'settingsOpen' } as const, false)
+const prefs = atom({ plugin: 'goyangi', key: 'prefs' } as const, {} as Prefs)
+const settingsOpen = atom({ plugin: 'goyangi', key: 'settingsOpen' } as const, false)
 // Whether the panel is drawn above the prompt when position is bottom. When right, the engine's Pane holds the open state.
-const bottomOpen = atom({ plugin: 'yaong', key: 'bottomOpen' } as const, false)
+const bottomOpen = atom({ plugin: 'goyangi', key: 'bottomOpen' } as const, false)
 // Open Claude Code sessions on this machine (the Open sessions box above the session map), refreshed every 30 seconds
-const peers = atom({ plugin: 'yaong', key: 'peers' } as const, { self: '', list: [] } as Peers)
-const tabs = atom({ plugin: 'yaong', key: 'tabs' } as const, [] as Tab[])
+const peers = atom({ plugin: 'goyangi', key: 'peers' } as const, { self: '', list: [] } as Peers)
+const tabs = atom({ plugin: 'goyangi', key: 'tabs' } as const, [] as Tab[])
 // Pulls waiting for their handoff (the other session's id → the pull's turn flow branch), and answered ones (branch → the turn the note arrived as, T5).
 // Only a pull whose note comes back here is waited on: a send expects no answer, and a pull passed on to another session (`to`) answers there.
-const pulls = atom({ plugin: 'yaong', key: 'pulls' } as const, { wait: {} as Record<string, string>, back: {} as Record<string, string> })
+const pulls = atom({ plugin: 'goyangi', key: 'pulls' } as const, { wait: {} as Record<string, string>, back: {} as Record<string, string> })
 // Sticky numbers (state.ts stick) for tabs and sessions. They describe the machine, not one conversation, so they are also saved to $.store
 // and loaded again when a session starts: /clear must not renumber them. Numbers unused for NUMS_TTL are dropped (tab ids don't outlive a browser restart).
-const nums = atom({ plugin: 'yaong', key: 'nums' } as const, {} as Record<string, number>)
+const nums = atom({ plugin: 'goyangi', key: 'nums' } as const, {} as Record<string, number>)
 const NUMS_TTL = 12 * 3600_000
-const NUMBERS_NOTE = `Numbered targets (Yaong): the person names other Claude Code sessions, coding agents and browser tabs by the numbers Yaong shows, with no other context.
-- A browser tab code is a letter and a number: B1, c2, G1 (case aside; B Brave, C Chrome, E Edge, A Arc, V Vivaldi, M Chromium, G ego lite, S Safari, F Firefox, W Whale). "b1에서 작업해줘", "C3 탭 읽어줘" mean that tab. Call mcp__yaong__browser_tabs (list first if you don't know what B1 is) and work inside that tab with action run (JavaScript), read or focus. Don't open the address again in another browser tool.
-- A bare number with 세션/session ("2번 세션에 보내줘", "1번에서 가져와") means that Open sessions entry. Call mcp__yaong__sessions (list first), then send (this session's handoff to session \`to\`) or pull (session \`from\`'s handoff).
+const NUMBERS_NOTE = `Numbered targets (Goyangi): the person names other Claude Code sessions, coding agents and browser tabs by the numbers Goyangi shows, with no other context.
+- A browser tab code is a letter and a number: B1, c2, G1 (case aside; B Brave, C Chrome, E Edge, A Arc, V Vivaldi, M Chromium, G ego lite, S Safari, F Firefox, W Whale). "b1에서 작업해줘", "C3 탭 읽어줘" mean that tab. Call mcp__goyangi__browser_tabs (list first if you don't know what B1 is) and work inside that tab with action run (JavaScript), read or focus. Don't open the address again in another browser tool.
+- A bare number with 세션/session ("2번 세션에 보내줘", "1번에서 가져와") means that Open sessions entry. Call mcp__goyangi__sessions (list first), then send (this session's handoff to session \`to\`) or pull (session \`from\`'s handoff).
 - A bare "3번" with no letter, no 세션/session and no earlier subject: read it as a session number first, and look for a tab only when sessions has no such number (tabs always have a letter). Ask the person only when it still fits more than one target.
 - The numbers belong to the machine, not to this conversation: they stay after /clear and a new session. Never guess a number's target from memory; list again.`
 // First shown row of the Open sessions and Browser tabs boxes, moved by the wheel and their scrollbars
 // App icons for the Open sessions and Browser tabs rows, keyed by app name ('Claude', 'Brave Browser')
-const icons = atom({ plugin: 'yaong', key: 'icons' } as const, {} as Record<string, AppIcon>)
+const icons = atom({ plugin: 'goyangi', key: 'icons' } as const, {} as Record<string, AppIcon>)
 // Fresh session: '' idle, 'writing' while the model writes the handoff note, 'clearing' until /clear runs
-const freshStage = atom({ plugin: 'yaong', key: 'freshStage' } as const, '')
-const peerFrom = atom({ plugin: 'yaong', key: 'peerFrom' } as const, 0)
-const tabFrom = atom({ plugin: 'yaong', key: 'tabFrom' } as const, 0)
-const fold = atom({ plugin: 'yaong', key: 'fold' } as const, { all: false, side: false, map: false, flow: false, agents: false, log: false })
+const freshStage = atom({ plugin: 'goyangi', key: 'freshStage' } as const, '')
+const peerFrom = atom({ plugin: 'goyangi', key: 'peerFrom' } as const, 0)
+const tabFrom = atom({ plugin: 'goyangi', key: 'tabFrom' } as const, 0)
+const fold = atom({ plugin: 'goyangi', key: 'fold' } as const, { all: false, side: false, map: false, flow: false, agents: false, log: false })
 
 // Token colors: Claude Code theme colors, so they match other Claude Code screens and follow light/dark themes.
 // ↑(new input)=suggestion, ⟳(cache read)=permission, ↓(output)=claude, cost=warning
@@ -134,7 +134,7 @@ const WIDE = 110 // Width requested when expanded. A width the user dragged to t
 // The engine doesn't let plugins choose the Pane position, so the bottom position draws the same screen in the AbovePrompt area instead.
 function openPane($: EngineInterface): Promise<unknown> {
   if (cur.position === 'bottom') return update($, bottomOpen, () => true)
-  return $.ui.open({ id: PANE, title: 'Yaong', columns: WIDE, closeOnEscape: true })
+  return $.ui.open({ id: PANE, title: 'Goyangi', columns: WIDE, closeOnEscape: true })
 }
 function closePane($: EngineInterface): Promise<unknown> {
   return cur.position === 'bottom' ? update($, bottomOpen, () => false) : $.ui.close({ id: PANE })
@@ -196,7 +196,7 @@ let sessionEpoch = 0
 function alert($: { ui: { toast: (text: string) => void } }, key: string, text: string) {
   if (alerted.has(key)) return
   alerted.add(key)
-  $.ui.toast(`Yaong · ${text}`)
+  $.ui.toast(`Goyangi · ${text}`)
 }
 
 function set($: Parameters<typeof update>[0], fn: (t: Tree) => Tree) {
@@ -331,7 +331,7 @@ async function refreshPeers($: EngineInterface) {
   peersBusy = all.some(p => p.sessionId !== self && p.status === 'busy')
   const list = all.map(p => (p.sessionId === self ? p : { ...p, num: n[`s:${p.sessionId}`] })).sort((x, y) => (x.num ?? 0) - (y.num ?? 0))
   await update($, peers, v => (v.self === self && JSON.stringify(v.list) === JSON.stringify(list) ? v : { self, list }))
-  quiet(ensureIcons($, ['yaong']))
+  quiet(ensureIcons($, ['goyangi']))
   if (list.some(p => !isAgent(p))) quiet(ensureIcons($, ['Claude']))
   if (list.some(isAgent)) quiet(ensureIcons($, list.filter(isAgent).map(p => `agent:${p.kind}`)))
 }
@@ -344,22 +344,22 @@ async function myHandoff($: EngineInterface): Promise<string> {
   return handoffNote({ name, sessionId: id, cwd: await $.session.cwd(), prompt: t.turn.prompt, files: t.files?.edit ?? [], messages: Array.isArray(msgs) ? msgs : [] })
 }
 // Fresh session: before the context fills, carry the work into a new session in this same window, with no compaction.
-// 1. The model writes a handoff note to a file (Yaong's own note instead when the context is too full for that turn).
+// 1. The model writes a handoff note to a file (Goyangi's own note instead when the context is too full for that turn).
 // 2. After that turn, /clear starts a new session here; the old one stays resumable with claude --resume.
 // 3. The new session's first prompt points at the note. The pending note lives in $.store, so it survives anything /clear resets.
-const FRESH_FULL = 95 // At or past this context %, Yaong writes the note itself instead of spending a model turn
+const FRESH_FULL = 95 // At or past this context %, Goyangi writes the note itself instead of spending a model turn
 let freshFile = ''
 async function startFresh($: EngineInterface) {
   if (await read($, freshStage)) return
   const id = await $.session.id()
-  freshFile = `${(await $.env.get('TMPDIR').catch(() => undefined)) || '/tmp/'}yaong/handoff-${id}.md`.replace(/\/\/+/g, '/')
+  freshFile = `${(await $.env.get('TMPDIR').catch(() => undefined)) || '/tmp/'}goyangi/handoff-${id}.md`.replace(/\/\/+/g, '/')
   await $.store.set('fresh', { file: freshFile, prev: id, at: Date.now() })
   if (((await $.session.usage().catch(() => undefined))?.context.percent ?? 0) >= FRESH_FULL) {
     await $.fs.write(freshFile, await myHandoff($))
     return clearToFresh($)
   }
   await update($, freshStage, () => 'writing')
-  $.ui.toast('Yaong · Writing a handoff note, then continuing in a fresh session')
+  $.ui.toast('Goyangi · Writing a handoff note, then continuing in a fresh session')
   await $.prompt.submit({ text: `The context is nearly full, so this work continues in a fresh session in this window. Write a handoff note to ${freshFile} for the session that picks it up: the goal, what is done, the decisions made and why, the files involved, what is left and the very next step, and anything that went wrong or is easy to miss. Write only that file, then reply "handoff written".` })
 }
 // After the note: /clear, outside the turn's hooks (a hook the turn waits on can't run a command)
@@ -373,7 +373,7 @@ const sendTo = async ($: EngineInterface, to: string, text: string, ok: string) 
   let line: string
   if (isAgent({ sessionId: to })) {
     const { ws, surface } = cmuxTarget(to)
-    const file = `${(await $.env.get('TMPDIR').catch(() => undefined)) || '/tmp/'}yaong/handoff-${Date.now()}.md`.replace(/\/\/+/g, '/')
+    const file = `${(await $.env.get('TMPDIR').catch(() => undefined)) || '/tmp/'}goyangi/handoff-${Date.now()}.md`.replace(/\/\/+/g, '/')
     await $.fs.write(file, text)
     const at = ['--workspace', ws, '--surface', surface]
     const typed = await $.process.run(['cmux', 'send', ...at, `Read the handoff note at ${file} and continue from it.`], { timeoutMs: 10_000 }).catch(() => undefined)
@@ -383,7 +383,7 @@ const sendTo = async ($: EngineInterface, to: string, text: string, ok: string) 
     const r = await $.session.send({ to: { sessionId: to }, text })
     line = r.isDelivered ? ok : `Not sent: ${r.reason}`
   }
-  $.ui.toast(`Yaong · ${line}`)
+  $.ui.toast(`Goyangi · ${line}`)
   return line
 }
 // Another coding agent's handoff: the last 200 lines of its terminal, since it can't answer a pull itself
@@ -399,10 +399,10 @@ const sendHandoff = ($: EngineInterface, to: string, name: string) =>
 const askHandoff = async ($: EngineInterface, to: Peer, reply?: Peer): Promise<string> => {
   if (isAgent(to)) {
     const text = await agentScreen($, to)
-    if (!text) { $.ui.toast(`Yaong · Could not read ${to.name}'s terminal`); return `Could not read ${to.name}'s terminal` }
+    if (!text) { $.ui.toast(`Goyangi · Could not read ${to.name}'s terminal`); return `Could not read ${to.name}'s terminal` }
     if (reply) return sendTo($, reply.sessionId, text, `Passed ${to.name}'s screen to ${reply.name}`)
     await $.prompt.submit({ text })
-    $.ui.toast(`Yaong · Brought ${to.name}'s screen here`)
+    $.ui.toast(`Goyangi · Brought ${to.name}'s screen here`)
     return text
   }
   if (reply && isAgent(reply)) return `A Claude session can only answer to another Claude session. Pull ${to.name} here first, then send to ${reply.name}.`
@@ -412,21 +412,21 @@ const askHandoff = async ($: EngineInterface, to: Peer, reply?: Peer): Promise<s
 }
 // App icons: the app's own .icns (Info.plist CFBundleIconFile) converted with sips to a 32px PNG in the temp folder, read once as base64.
 // An app that isn't in /Applications, or a conversion that fails, falls back to a shipped icons/apps/<app>.png, else records null so it isn't tried again this session.
-// The icons atom outlives a plugin reload (this file is read again, the engine's atoms are not), so Yaong's own logo is read once per load of this file
-// instead of once per session; otherwise a changed icons/yaong.png would keep showing the old drawing until a new session.
+// The icons atom outlives a plugin reload (this file is read again, the engine's atoms are not), so Goyangi's own logo is read once per load of this file
+// instead of once per session; otherwise a changed icons/goyangi.png would keep showing the old drawing until a new session.
 let logoRead = false
 async function ensureIcons($: EngineInterface, apps: string[]) {
   const have = await read($, icons)
-  const want = [...new Set(apps)].filter(a => !(a in have) || (a === 'yaong' && !logoRead))
-  if (want.includes('yaong')) logoRead = true
+  const want = [...new Set(apps)].filter(a => !(a in have) || (a === 'goyangi' && !logoRead))
+  if (want.includes('goyangi')) logoRead = true
   if (!want.length) return
-  const dir = `${(await $.env.get('TMPDIR').catch(() => undefined)) || '/tmp/'}yaong/icons`.replace(/\/\/+/g, '/')
+  const dir = `${(await $.env.get('TMPDIR').catch(() => undefined)) || '/tmp/'}goyangi/icons`.replace(/\/\/+/g, '/')
   const add: Record<string, AppIcon> = {}
   for (const app of want) {
     // A coding agent (agent:codex) has no app to take an icon from; the plugin ships its site's favicon as icons/agents/<kind>.png
-    // Yaong's own logo (the header) is shipped as icons/yaong.png
-    if (app.startsWith('agent:') || app === 'yaong') {
-      add[app] = await $.fs.read(`${$.plugin.root}/icons/${app === 'yaong' ? 'yaong' : `agents/${app.slice(6)}`}.png`, { as: 'bytes' }).then(r => ((r as { base64?: string }).base64 ? { png: (r as { base64: string }).base64 } : null)).catch(() => null)
+    // Goyangi's own logo (the header) is shipped as icons/goyangi.png
+    if (app.startsWith('agent:') || app === 'goyangi') {
+      add[app] = await $.fs.read(`${$.plugin.root}/icons/${app === 'goyangi' ? 'goyangi' : `agents/${app.slice(6)}`}.png`, { as: 'bytes' }).then(r => ((r as { base64?: string }).base64 ? { png: (r as { base64: string }).base64 } : null)).catch(() => null)
       continue
     }
     const root = `/Applications/${app}.app/Contents`
@@ -477,13 +477,13 @@ const focusTab = async ($: EngineInterface, t: Tab) => {
     const sel = (await read($, tabs)).find(x => x.app === t.app && x.win === t.win && x.active)
     const r = await $.process.run(['osascript', '-e', firefoxFocus, '--', sel?.title ?? '', String(t.index)], { timeoutMs: 15_000 }).catch(() => undefined)
     const line = r?.exitCode === 0 ? `Brought tab ${t.id} to the front` : `Could not switch to tab ${t.id}: ${r?.stderr.trim().split('\n')[0] || 'no answer'}. Firefox is switched by keys, so the app running osascript needs Accessibility permission (System Settings > Privacy & Security > Accessibility)`
-    $.ui.toast(`Yaong · ${line}`)
+    $.ui.toast(`Goyangi · ${line}`)
     return line
   }
   const pick = t.safari ? `set current tab of window ${t.win} to tab ${t.index} of window ${t.win}` : `set active tab index of window ${t.win} to ${t.index}`
   const r = await $.process.run(['osascript', '-e', `tell application "${t.app}"\n${pick}\nset index of window ${t.win} to 1\nactivate\nend tell`], { timeoutMs: 15_000 }).catch(() => undefined)
   const line = r?.exitCode === 0 ? `Brought tab ${t.id} to the front` : `Could not switch to tab ${t.id}`
-  $.ui.toast(`Yaong · ${line}`)
+  $.ui.toast(`Goyangi · ${line}`)
   return line
 }
 // Runs JavaScript in that exact tab (no new tab, no browser pick). The JS goes in as an argument so quotes need no escaping.
@@ -541,9 +541,9 @@ async function checkUpdate($: EngineInterface) {
   if (!shouldCheckUpdate(cur.autoUpdate, $.plugin.root, await $.store.get('updateCheckedAt').catch(() => undefined), now)) return
   await $.store.set('updateCheckedAt', now)
   const init = { env: { GIT_TERMINAL_PROMPT: '0', CMUX_CLAUDE_HOOKS_DISABLED: '1' }, timeoutMs: 180_000 }
-  await $.process.run(['claude', 'plugin', 'marketplace', 'update', 'yaong', '--json'], init)
-  const v = updatedVersion((await $.process.run(['claude', 'plugin', 'update', 'yaong@yaong', '--json'], init)).stdout)
-  if (v) $.ui.toast(`Yaong · Updated to v${v.to}${v.from ? ` (from v${v.from})` : ''}. Run /reload-plugins to apply`)
+  await $.process.run(['claude', 'plugin', 'marketplace', 'update', 'goyangi', '--json'], init)
+  const v = updatedVersion((await $.process.run(['claude', 'plugin', 'update', 'goyangi@goyangi', '--json'], init)).stdout)
+  if (v) $.ui.toast(`Goyangi · Updated to v${v.to}${v.from ? ` (from v${v.from})` : ''}. Run /reload-plugins to apply`)
 }
 
 // Whether the Claude Code theme is a light one (terminal only).
@@ -993,7 +993,7 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
   // Row icon: the app's icon in 2 cells (Svg on desktop, a pixel Image on kitty and Ghostty). Elsewhere, or with no icon, the caller's text mark stands in.
   // Also after a plugin reload, which skips session.start: decide the terminal and load the logo here (both are skipped when already done)
   if (pixelTerm === undefined) await decidePixelTerm($)
-  quiet(ensureIcons($, ['yaong']))
+  quiet(ensureIcons($, ['goyangi']))
   const iconMap = await read($, icons)
   const RowSvg = desk ? $.ui.resolve(e).Svg : undefined
   const RowImage = e.surface === 'terminal' && pixelTerm ? $.ui.resolve(e).Image : undefined
@@ -1014,19 +1014,19 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
     )
   }
   // Header logo: the walk view cat face in 2 cells on the blue chip, or null (the 🐱 emoji stands in) until it is loaded or where no image can be drawn.
-  const logoIc = iconMap['yaong']
+  const logoIc = iconMap['goyangi']
   const logoSig = logoIc ? `${logoIc.png.length}:${logoIc.png.slice(-12)}` : 'none'
   const logoMark = logoIc && (RowSvg || RowImage)
     ? (
       <Box key={`head-logo-${logoSig}`} flexShrink={0} width={2} height={1} backgroundColor={TITLE}>
         {RowSvg
-          ? <RowSvg source={`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><image href="data:image/png;base64,${logoIc.png}" width="32" height="32"/></svg>`} alt="Yaong" width={16} height={16} />
-          : RowImage && <RowImage source={{ png: logoIc.png }} columns={2} rows={1} alt="Yaong" />}
+          ? <RowSvg source={`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><image href="data:image/png;base64,${logoIc.png}" width="32" height="32"/></svg>`} alt="Goyangi" width={16} height={16} />
+          : RowImage && <RowImage source={{ png: logoIc.png }} columns={2} rows={1} alt="Goyangi" />}
       </Box>
     )
     : null
   const logoChip = (name: boolean) => (logoMark
-    ? <Box flexShrink={0}><Text bold color="#ffffff" backgroundColor={TITLE}> </Text>{logoMark}<Text bold color="#ffffff" backgroundColor={TITLE} wrap="truncate">{name ? ' Yaong ' : ' '}</Text></Box>
+    ? <Box flexShrink={0}><Text bold color="#ffffff" backgroundColor={TITLE}> </Text>{logoMark}<Text bold color="#ffffff" backgroundColor={TITLE} wrap="truncate">{name ? ' Goyangi ' : ' '}</Text></Box>
     : <Text bold color="#ffffff" backgroundColor={TITLE} wrap="truncate">{name ? LOGO : ' 🐱 '}</Text>)
   // Text marks when no icon is drawn: Claude's ✳ in its orange, and each browser's letter in its brand color
   const CLAUDE_MARK = '#d97757'
@@ -2237,7 +2237,7 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
   const hs = headState(t)
   const stateW = hs === 'idle' ? displayWidth('○ idle') : displayWidth(STATE_CHIP[hs][1]) + 2
   const rightW = stateW + 1 + HEAD_CHIP_W * 4
-  const LOGO = ' 🐱 Yaong '
+  const LOGO = ' 🐱 Goyangi '
   const LOGO_W = 9 // the emoji takes two cells
   const MARK_W = 4 // ' 🐱 '
   const headW = desk ? cols : Math.max(1, body - SCROLLBAR)
@@ -2249,7 +2249,7 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
         so the status chip and buttons always land inside the header. */}
     {headMode === 'mark' && <Box key="head-mark" flexShrink={0}>{logoChip(false)}</Box>}
     {headMode === 'full' && <Box key="head-left" flexShrink={1} minWidth={0} overflow="hidden" {...(desk ? {} : { width: Math.max(0, headW - rightW - 1) })}>
-      {/* Logo and title (LOGO): 🐱 + Yaong, white text on a fixed blue chip whatever the theme.
+      {/* Logo and title (LOGO): 🐱 + Goyangi, white text on a fixed blue chip whatever the theme.
           The logo shrinks too (cut at the edge), so on narrow panels the summary goes first, then the logo, and the status chip and buttons always stay. */}
       {/* Terminal layout won't shrink a box below its text's minimum width unless minWidth is 0, so both the logo and the summary set it.
           The logo's shrink factor is tiny, so the summary gives up its width first and the logo is cut only after the summary is gone. */}
@@ -2582,7 +2582,7 @@ async function settingsScreen($: EngineInterface, e: RenderInput<'Pane' | 'Above
     <Box flexDirection="column" borderStyle="round" borderColor={C.server} paddingX={1}>
       <Box justifyContent="space-between">
         {/* The plugin version sits beside the title (it used to take the end of the footer's Keys row) */}
-        <Text bold color={C.server} wrap="truncate">⚙ Settings{version ? <Text dimColor bold={false}>  Yaong v{version}</Text> : null}</Text>
+        <Text bold color={C.server} wrap="truncate">⚙ Settings{version ? <Text dimColor bold={false}>  Goyangi v{version}</Text> : null}</Text>
         <Button key="settings-close" hover={hov('settings-close')} plain dimColor label="Close ▴" onPress={toggleSettings} />
       </Box>
       {grid}
@@ -2625,8 +2625,8 @@ export const register: Register = (on, options) => {
 
   on('session.start', async ($, e, next) => {
     await decidePixelTerm($)
-    await $.command.register({ name: 'yaong', description: 'Open the Yaong panel' })
-    // A fresh session started by Yaong: its first prompt points at the handoff note (a pending note older than 10 minutes is dropped)
+    await $.command.register({ name: 'goyangi', description: 'Open the Goyangi panel' })
+    // A fresh session started by Goyangi: its first prompt points at the handoff note (a pending note older than 10 minutes is dropped)
     const pending = (e as { source?: string }).source === 'clear' ? await $.store.get('fresh').catch(() => undefined) as { file?: string; prev?: string; at?: number } | null | undefined : undefined
     if (pending) {
       await $.store.set('fresh', null)
@@ -2638,13 +2638,13 @@ export const register: Register = (on, options) => {
     }
     await $.tool.register({
       name: 'browser_tabs',
-      description: 'Open tabs of the running browsers (Chrome, Brave, Edge, Arc, Vivaldi, Chromium, ego lite, Safari, Firefox, and any other installed browser that scripts its tabs) in every window and profile, as the Yaong Browser tabs box shows them. Each is numbered by its browser letter and a number it keeps for the rest of this session, while other tabs open, close or move: B1, B2 for Brave, C1 for Chrome (E Edge, A Arc, V Vivaldi, M Chromium, G ego lite, S Safari, F Firefox, W Whale; other browsers get the first free letter of their name). A tab named earlier keeps meaning that tab; a closed tab\'s number is not reused. Use it whenever the person mentions a browser tab, by number ("B3") or by what it is ("the GitHub PR tab", "깃헙 PR 탭 내용 알려줘"). For words, pass the words as they would appear in the tab\'s title or site (translate them: "깃헙" is "github"). action list: every tab with its title and site. read: the title and URL of the tab `tab` names. run: runs `js` in that same tab and returns the value of its last expression as text (document.body.innerText to read it, element.click() or setting values to change it); work in the person\'s tab this way instead of opening the URL in another browser tool. The result is synchronous: a Promise comes back empty, so start async work, then check with another run call. Results over 20,000 characters are cut, so select what you need. If the browser says JavaScript from Apple Events is off, tell the person to turn on View > Developer > Allow JavaScript from Apple Events in that browser (Safari: Develop > Developer Settings > Allow JavaScript from Apple Events). focus: bring it to the front in the person\'s browser, only when they ask for that. Firefox (F) tabs come from its session file, up to 15 seconds old: they can be listed, read and focused (by keys, needs Accessibility), but not run. Several matches come back as candidates: pick by number, or ask.',
+      description: 'Open tabs of the running browsers (Chrome, Brave, Edge, Arc, Vivaldi, Chromium, ego lite, Safari, Firefox, and any other installed browser that scripts its tabs) in every window and profile, as the Goyangi Browser tabs box shows them. Each is numbered by its browser letter and a number it keeps for the rest of this session, while other tabs open, close or move: B1, B2 for Brave, C1 for Chrome (E Edge, A Arc, V Vivaldi, M Chromium, G ego lite, S Safari, F Firefox, W Whale; other browsers get the first free letter of their name). A tab named earlier keeps meaning that tab; a closed tab\'s number is not reused. Use it whenever the person mentions a browser tab, by number ("B3") or by what it is ("the GitHub PR tab", "깃헙 PR 탭 내용 알려줘"). For words, pass the words as they would appear in the tab\'s title or site (translate them: "깃헙" is "github"). action list: every tab with its title and site. read: the title and URL of the tab `tab` names. run: runs `js` in that same tab and returns the value of its last expression as text (document.body.innerText to read it, element.click() or setting values to change it); work in the person\'s tab this way instead of opening the URL in another browser tool. The result is synchronous: a Promise comes back empty, so start async work, then check with another run call. Results over 20,000 characters are cut, so select what you need. If the browser says JavaScript from Apple Events is off, tell the person to turn on View > Developer > Allow JavaScript from Apple Events in that browser (Safari: Develop > Developer Settings > Allow JavaScript from Apple Events). focus: bring it to the front in the person\'s browser, only when they ask for that. Firefox (F) tabs come from its session file, up to 15 seconds old: they can be listed, read and focused (by keys, needs Accessibility), but not run. Several matches come back as candidates: pick by number, or ask.',
       inputSchema: { type: 'object', properties: { action: { type: 'string', enum: ['list', 'read', 'focus', 'run'] }, tab: { type: 'string', description: 'A tab number like "B3", or words from its title or site like "github pull 12"' }, js: { type: 'string', description: 'For run: JavaScript to run in the tab; the last expression is returned as text' } }, required: ['action'] },
       isDeferred: false,
     }).catch(() => undefined)
     await $.tool.register({
       name: 'sessions',
-      description: 'The other open Claude Code sessions and coding agents (Codex, OpenCode, Aider and others running in cmux terminals), numbered as the Yaong Open sessions box shows them; a session keeps its number for the rest of this session while others open or close, and a closed one\'s number is not reused. Use it when the person points at a session by number ("send this to session 2", "pull from 1", "1번 세션에서 2번으로"). action list: the numbered sessions. send: this session\'s handoff note goes to session `to`. pull: session `from` is asked for its handoff, which comes here, or to session `to` when given. A coding agent gets the note as a file it is told to read, and its handoff is the last 200 lines of its terminal.',
+      description: 'The other open Claude Code sessions and coding agents (Codex, OpenCode, Aider and others running in cmux terminals), numbered as the Goyangi Open sessions box shows them; a session keeps its number for the rest of this session while others open or close, and a closed one\'s number is not reused. Use it when the person points at a session by number ("send this to session 2", "pull from 1", "1번 세션에서 2번으로"). action list: the numbered sessions. send: this session\'s handoff note goes to session `to`. pull: session `from` is asked for its handoff, which comes here, or to session `to` when given. A coding agent gets the note as a file it is told to read, and its handoff is the last 200 lines of its terminal.',
       inputSchema: { type: 'object', properties: { action: { type: 'string', enum: ['list', 'send', 'pull'] }, to: { type: 'integer', minimum: 1 }, from: { type: 'integer', minimum: 1 } }, required: ['action'] },
       isDeferred: false,
     }).catch(() => undefined)
@@ -2700,29 +2700,29 @@ export const register: Register = (on, options) => {
     return next(e)
   })
 
-  // /yaong opens the panel fresh: it lifts minimize and all section folds so every section is expanded.
-  // A pull request from another session's Yaong (state.ts pullRequest) is answered here with this session's handoff, and dropped before it reaches the model
+  // /goyangi opens the panel fresh: it lifts minimize and all section folds so every section is expanded.
+  // A pull request from another session's Goyangi (state.ts pullRequest) is answered here with this session's handoff, and dropped before it reaches the model
   on('prompt.submit', async ($, e, next) => {
     const peer = e.origin.kind === 'peer' || e.origin.kind === 'peer-send-message'
     const sender = peer ? handoffFrom(e.text) : undefined
-    if (sender !== undefined) $.ui.toast(`Yaong · Received a handoff from ${sender || 'another session'}`)
+    if (sender !== undefined) $.ui.toast(`Goyangi · Received a handoff from ${sender || 'another session'}`)
     const from = peer ? pullFrom(e.text) : undefined
     if (!from) return next(e)
     quiet(sendHandoff($, from, 'the session that asked'))
-    return { drop: 'Yaong answered a handoff request' }
+    return { drop: 'Goyangi answered a handoff request' }
   })
 
   // A bare number or tab code ("2번 세션", "b1에서 작업해줘") means the numbers the Open sessions and Browser tabs boxes show.
   // Fixed text, so the prompt cache stays valid; the live list comes from the two tools.
   on('prompt.compose', async ($, e, next) => {
     const r = await next(e)
-    return { sections: [...r.sections, { id: 'yaong:numbers', scope: 'session' as const, text: NUMBERS_NOTE }] }
+    return { sections: [...r.sections, { id: 'goyangi:numbers', scope: 'session' as const, text: NUMBERS_NOTE }] }
   })
 
-  on('command.run', { command: 'yaong' }, async $ => {
+  on('command.run', { command: 'goyangi' }, async $ => {
     await safe(update($, fold, () => ({ all: false, side: false, map: false, flow: false, agents: false, log: false })))
     await openPane($)
-    return { text: 'Opened the Yaong panel.' }
+    return { text: 'Opened the Goyangi panel.' }
   })
 
   // Turns started without input (continuing, handling notifications, etc.) also open as new turns. Otherwise that turn's turn.complete overwrites the previous turn's record.
@@ -2861,7 +2861,7 @@ export const register: Register = (on, options) => {
     const fileTag = !fpath ? {} : e.tool === 'Read' ? { readKey: `${fpath}|${String(input.offset ?? '')}|${String(input.limit ?? '')}` } : { path: fpath }
     // Handing work to or from another session: the branch names that session (⇢ api #2) instead of the tool name
     // The sessions tool refreshes the list as it runs, so the names are worked out again once it has (the first call may find the list empty)
-    const isSessions = e.tool === 'mcp__yaong__sessions'
+    const isSessions = e.tool === 'mcp__goyangi__sessions'
     let pr = isSessions ? await read($, peers) : undefined
     let others = pr ? pr.list.filter(x => x.sessionId !== pr!.self) : []
     let hand = pr ? handoffLabel(input, others) : undefined
@@ -2902,9 +2902,9 @@ export const register: Register = (on, options) => {
     }
   }).catch(($, e, next) => next(e))
 
-  // Yaong's own tools answer after the recorder above, so their calls are drawn in the turn flow like any other tool (handlers run in registration order)
-  on('tool.call', { tool: 'mcp__yaong__browser_tabs' }, async ($, e) => ({ result: await tabsTool($, e as never) }) as never)
-  on('tool.call', { tool: 'mcp__yaong__sessions' }, async ($, e) => {
+  // Goyangi's own tools answer after the recorder above, so their calls are drawn in the turn flow like any other tool (handlers run in registration order)
+  on('tool.call', { tool: 'mcp__goyangi__browser_tabs' }, async ($, e) => ({ result: await tabsTool($, e as never) }) as never)
+  on('tool.call', { tool: 'mcp__goyangi__sessions' }, async ($, e) => {
     // The tool's arguments sit on the event beside `tool`
     return { result: await sessionsTool($, e as never) } as never
   })
@@ -2960,7 +2960,7 @@ export const register: Register = (on, options) => {
     if (!e.agentId) {
       quiet(read($, freshStage).then(async stage => {
         if (stage === 'writing') {
-          // The note the model wrote, or Yaong's own when it didn't
+          // The note the model wrote, or Goyangi's own when it didn't
           const wrote = await $.fs.read(freshFile).then(t => typeof t === 'string' && t.trim().length > 0, () => false)
           if (!wrote) await $.fs.write(freshFile, await myHandoff($))
           return clearToFresh($)
@@ -3053,7 +3053,7 @@ export const register: Register = (on, options) => {
     const petFailed = headState(t) === 'failed'
     const petPal = LOOK(petFailed ? C.fail : '#93c5fd')
     if (pixelTerm === undefined) await decidePixelTerm($)
-    quiet(ensureIcons($, ['yaong']))
+    quiet(ensureIcons($, ['goyangi']))
     const BandSvg = e.surface === 'desktop' ? $.ui.resolve(e).Svg : undefined
     const BandImage = e.surface === 'terminal' && pixelTerm ? $.ui.resolve(e).Image : undefined
     const petArt = sprite(petBusy ? 'run' : petFailed ? 'fail' : 'sleep', n, bandPrefs.character)
@@ -3064,10 +3064,10 @@ export const register: Register = (on, options) => {
       : blockArt ? <Text key="band-pet">{(bandPrefs.character === 'dog' ? '🐶' : '🐱') + (petBusy ? '💨' : petFailed ? '❗' : '💤')} </Text>
       : <Text key="band-pet">{dotRows(miniSprite(petBusy ? n : 0, bandPrefs.character), petPal, blockArt)[0]!.map((g, k) => <Text key={`bp-${k}`} color={g.fg} backgroundColor={g.bg}>{g.text}</Text>)} </Text>
     // The title's logo: the same cat face as the header's, on the blue chip; null (the 🐱 emoji) until it is loaded or where no image can be drawn
-    const bandLogoPng = (await read($, icons))['yaong']?.png
+    const bandLogoPng = (await read($, icons))['goyangi']?.png
     const bandLogo = !bandLogoPng ? null
-      : BandSvg ? <BandSvg source={`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><image href="data:image/png;base64,${bandLogoPng}" width="32" height="32"/></svg>`} alt="Yaong" width={16} height={16} />
-      : BandImage ? <BandImage source={{ png: bandLogoPng }} columns={2} rows={1} alt="Yaong" />
+      : BandSvg ? <BandSvg source={`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><image href="data:image/png;base64,${bandLogoPng}" width="32" height="32"/></svg>`} alt="Goyangi" width={16} height={16} />
+      : BandImage ? <BandImage source={{ png: bandLogoPng }} columns={2} rows={1} alt="Goyangi" />
       : null
     const petLead = !!(BandSvg || BandImage) || blockArt // drawn at the start of the row, outside the track's Text (the emoji pet too, so the steps run on unbroken)
     const track = miniTrack(stations(t.flow, t.main), Math.max(6, inner - displayWidth(head) - displayWidth(agentText) - (!petOn ? 0 : petLead && !blockArt ? 3 : 5)))
@@ -3121,13 +3121,13 @@ export const register: Register = (on, options) => {
           </Box>,
         )}
         </Box>
-        {/* The 🐱 Yaong title sits on the top border near its left corner, like a title on the prompt box's frame. The terminal's border is row 0.
+        {/* The 🐱 Goyangi title sits on the top border near its left corner, like a title on the prompt box's frame. The terminal's border is row 0.
             On desktop the border is a thin line and a vertical margin step is half a row, so the box moves down half a row (marginTop 1) to put its border
             through the middle of the title row, and the title is painted in the base surface color (clawd_background) to hide the line behind it. */}
         <Box position="absolute" top={0} left={2} {...(e.surface === 'desktop' ? { backgroundColor: 'clawd_background' } : {})}>
           {bandLogo
-            ? <Box key="band-logo"><Text backgroundColor={TITLE}> </Text><Box flexShrink={0} width={2} height={1} backgroundColor={TITLE}>{bandLogo}</Box><Text backgroundColor={TITLE}> </Text><Text bold> Yaong </Text></Box>
-            : <Text bold> 🐱 Yaong </Text>}
+            ? <Box key="band-logo"><Text backgroundColor={TITLE}> </Text><Box flexShrink={0} width={2} height={1} backgroundColor={TITLE}>{bandLogo}</Box><Text backgroundColor={TITLE}> </Text><Text bold> Goyangi </Text></Box>
+            : <Text bold> 🐱 Goyangi </Text>}
         </Box>
         {/* Wide terminals lay the settings rows out in up to 3 columns (an item takes about SETTING_W cells), so the screen stays short */}
         {bandSettings && await settingsScreen($, e, Math.max(1, Math.min(3, Math.floor((cols - 4 + 3) / (SETTING_W + 3)))))}

@@ -16,18 +16,18 @@ First public release.
 - Mission view: a side-scrolling pixel scene of the turn, drawn as pixels on kitty and Ghostty and as SVG on desktop
 - Settings screen, panel position (right split or above the prompt), minimize to one row, and auto update
 - Claude desktop app support
-- Header logo: the walk view's cat face (`icons/yaong.png`, the main cat's head in its light blue, with the orange patch and dark eyes) replaces the 🐱 emoji; terminals that can't draw images keep the emoji; the minimized view's title draws the same logo
+- Header logo: the walk view's cat face (`icons/goyangi.png`, the main cat's head in its light blue, with the orange patch and dark eyes) replaces the 🐱 emoji; terminals that can't draw images keep the emoji; the minimized view's title draws the same logo
 - Top box: the tool mix moves to the server tools row, the running tool's command no longer shows after the model (the turn flow shows it), and durations past an hour read `4h45m` or `6d4h` (usage limit resets no longer cut off as `↻8885m…`)
 - Coding agent rows in Open sessions show busy (●) and idle (○) from cmux's status tag for that agent (Running, Idle), instead of always idle, and `!` when the agent's screen shows it waiting on a question (folder trust, a command to approve, y/n); a screen showing work in progress (`esc to interrupt`) counts as busy, over cmux's status, which can stay Idle while codex works
 - A busy session's ● in Open sessions blinks while it works, even when this session is idle
 - Continue in a fresh session: past the context alert, one click (or Auto in the settings) has the model write a handoff note, runs /clear in the same window, and starts the new session from the note, with no compaction
-- Open sessions box above the session map: the other open Claude Code sessions, with `→ send` (this session's handoff goes there) and `← pull` (ask for theirs; a session running Yaong answers without a model turn)
+- Open sessions box above the session map: the other open Claude Code sessions, with `→ send` (this session's handoff goes there) and `← pull` (ask for theirs; a session running Goyangi answers without a model turn)
 - Numbered sessions and a `sessions` tool, so the conversation can point at one ("send this to session 2", "pull from 1 into 2"); a received handoff shows a toast, and a refused send shows its reason
 - Open sessions also lists other coding agents running in cmux terminals (Codex, OpenCode, Aider, and others): send types a line pointing at a handoff file, pull brings their last 200 terminal lines here
 - Browser tabs box under Open sessions: open tabs of Chrome, Brave, Edge, Arc, Vivaldi, and Chromium in every window, numbered by browser letter and place (`B1`, `B2`), with a `browser_tabs` tool that finds a tab by number or by words from its title or site ("the GitHub PR tab")
 - `browser_tabs` `run` action: runs JavaScript in the tab you named (read its text, click, fill fields) instead of reopening its URL in another browser tool, which asked which browser to use and lost the tab's state; needs Allow JavaScript from Apple Events in the browser
 - Coding agent rows in Open sessions start with their tool's favicon like Claude rows start with the Claude icon (codex ships with the OpenAI mark; add others as icons/agents/<name>.png)
-- Handoffs in the turn flow: a sessions tool send or pull is drawn as `⇢ api #2` / `⇠ docs-1 #1` with `sent` or `not sent`, marked `⇄` on the session map, and a turn started by a handoff shows `⇠ docs-1` on its prompt node; a pull shows `waiting` until its handoff arrives, then `↩ T5` for the turn it arrived as; Yaong's own tools are now recorded in the turn flow like other tools
+- Handoffs in the turn flow: a sessions tool send or pull is drawn as `⇢ api #2` / `⇠ docs-1 #1` with `sent` or `not sent`, marked `⇄` on the session map, and a turn started by a handoff shows `⇠ docs-1` on its prompt node; a pull shows `waiting` until its handoff arrives, then `↩ T5` for the turn it arrived as; Goyangi's own tools are now recorded in the turn flow like other tools
 - Whole-panel scrollbar in the terminal: when the panel is taller than its window, a bar at the right edge (the same bar as the lists') shows the position, and pressing or dragging it scrolls the panel there
 - Tab and session numbers stay put: a tab (by the browser's tab id) or session keeps the number it first got for the rest of the session, and a closed one's number isn't reused, so "C2" or "session 2" said earlier still points at the same one after others open, close, or move
 - Open sessions shows this session first as a `◉ this session` row
@@ -41,10 +41,10 @@ First public release.
 - On desktop, a long session row stays on one line and ends with … instead of wrapping
 - Turn flow step boxes are five rows (cache tokens and cost on rows of their own) so the arrows sit on the middle row, and the blank intent row under them is left out when no shown request wrote one
 - Model box and advisor merged into one main loop box: model and tokens on the left, gauges (ctx, cache, usage limits) lined up in a right column, and server tools on their own last row
-- Named Yaong (야옹, a cat's meow in Korean): the plugin, marketplace, and repository are `yaong`, the command is `/yaong`, and the tools are `mcp__yaong__sessions` and `mcp__yaong__browser_tabs`
+- Named Goyangi (야옹, a cat's meow in Korean): the plugin, marketplace, and repository are `goyangi`, the command is `/goyangi`, and the tools are `mcp__goyangi__sessions` and `mcp__goyangi__browser_tabs`
 - Walk view: main's pet carries the session's numbers. Tired eyes with dark circles and a half-pace gait as context nears and passes its alert, a sparkle shake after a compaction, a `$`, `s$`, `sS$` mark over the back and the turn's total next to main's status as the turn cost grows (red past the alert), a sky that turns to dusk and night as the 5h usage limit fills, and a `!` or `?` bubble while the turn has advice
 - Walk view: clicking a past turn in the session map replays it, with main walking through its spots; subagents run back to main (`↩ main`) for 2 seconds after they finish
-- Minimized view: with the walk view on, a small pet stands on the track; the two rows sit in a thin round border with `🐱 Yaong` on its top edge
+- Minimized view: with the walk view on, a small pet stands on the track; the two rows sit in a thin round border with `🐱 Goyangi` on its top edge
 - The mission view is now the walk view: `[Walk]` on the View row, `TURN WALK` as its title, and `Walk view` in the footer. The saved setting is unchanged
 - Mission view: the character is now a blocky pixel pet, a calico cat (default) or a dog, chosen in the settings screen (Character). A robot saved by an earlier version shows as the cat
 - The minimized view has a settings button `[=]` that opens the settings screen under its two rows, in up to three columns on wide terminals

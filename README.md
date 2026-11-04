@@ -1,22 +1,22 @@
 <h1 align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/images/logo-dark.png">
-    <img src="docs/images/logo-light.png" alt="Yaong" height="56">
+    <img src="docs/images/logo-light.png" alt="Goyangi" height="56">
   </picture>
 </h1>
 
-Yaong is a panel beside your [Claude Code](https://claude.com/claude-code) conversation that shows, turn by turn, where the time and money went.
+Goyangi is a panel beside your [Claude Code](https://claude.com/claude-code) conversation that shows, turn by turn, where the time and money went.
 
-Yaong (야옹) is the Korean word for a cat's meow: a cat that sits next to the conversation and watches every turn.
+Goyangi (고양이) is the Korean word for a cat: a cat that sits next to the conversation and watches every turn.
 
 ## Install
 
 ```bash
-claude plugin marketplace add netil/yaong
-claude plugin install yaong@yaong --scope user
+claude plugin marketplace add netil/goyangi
+claude plugin install goyangi@goyangi --scope user
 ```
 
-Run `/reload-plugins`, then open the panel with `/yaong`. It also opens by itself when a session starts. New versions install automatically (turn this off in the settings screen, `=` in the header).
+Run `/reload-plugins`, then open the panel with `/goyangi`. It also opens by itself when a session starts. New versions install automatically (turn this off in the settings screen, `=` in the header).
 
 ## Features
 

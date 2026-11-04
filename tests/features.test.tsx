@@ -3,7 +3,7 @@ import { emptyTree, toolErr, noteFail, addToolTime, slowTools, ctxLevel, focusFl
 import type { FlowItem } from '../types'
 declare const setTimeout: (fn: () => void, ms: number) => unknown
 
-const PANE = { plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 140, rows: 60 } as never } as const
+const PANE = { plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 140, rows: 60 } as never } as const
 const usage = (percent = 10) => () => ({ value: { startedAt: 0, context: { window: 200000, percent }, rateLimits: [] } as never })
 
 test('failure cause: tells denials from errors and clears on success', async () => {

@@ -4,7 +4,7 @@ import { secs, fmtTok, scopeKey, resumed, ended, newLoop, isBusy, emptyTree } fr
 // The test environment has setTimeout, but the types for hooks modules don't, so it's declared only here.
 declare const setTimeout: (fn: () => void, ms: number) => unknown
 
-const PANE = { plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 140, rows: 60 } as never } as const
+const PANE = { plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 140, rows: 60 } as never } as const
 const STEP = { answer: '', toolUses: [], stopReason: 'end_turn', usage: { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, model: 'm' } }
 
 test('rounding edges: never shows 1m60s, 60.0s, or 1000k', async () => {

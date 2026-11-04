@@ -1,21 +1,21 @@
-# Yaong manual
+# Goyangi manual
 
 ## Install
 
 ```bash
-claude plugin marketplace add netil/yaong
-claude plugin install yaong@yaong --scope user
+claude plugin marketplace add netil/goyangi
+claude plugin install goyangi@goyangi --scope user
 ```
 
-Run `/reload-plugins`, then open the panel with `/yaong`.
+Run `/reload-plugins`, then open the panel with `/goyangi`.
 
-Yaong checks for a new version when a session starts (at most once an hour) and installs it. A toast tells you to run `/reload-plugins`. Only copies installed from the `yaong` marketplace are checked. Turn it off with **Auto update** in the settings screen, then update by hand with `claude plugin update yaong@yaong`.
+Goyangi checks for a new version when a session starts (at most once an hour) and installs it. A toast tells you to run `/reload-plugins`. Only copies installed from the `goyangi` marketplace are checked. Turn it off with **Auto update** in the settings screen, then update by hand with `claude plugin update goyangi@goyangi`.
 
 ## Open, move, close
 
 | Action | How |
 |---|---|
-| Open | `/yaong` |
+| Open | `/goyangi` |
 | Settings | `=` in the header (`⚙` on desktop) |
 | Switch view | `[Turn flow]` / `[Walk]` above the turn flow, or `v` |
 | Move (right / above prompt) | `v` or `>` in the header (`⇵` on desktop) |
@@ -56,7 +56,7 @@ Logo, session summary (turns, steps, tool calls, cost), a status chip, and butto
 - Under 64 columns the gauges move below the left rows
 - The last row lists server tools (advisor, web search, ...) with call counts and average time. Shortcut `a` folds it
 
-**Continue in a fresh session.** When context passes the alert threshold, `⟳ ctx 85% · Continue in a fresh session` appears. One click writes a handoff note, runs `/clear`, and starts a new session whose first prompt points at the note. The old session stays available with `claude --resume <id>`. At 95% or more Yaong writes the note itself without a model turn. The **Fresh session** setting picks `Ask`, `Auto`, or `Off`.
+**Continue in a fresh session.** When context passes the alert threshold, `⟳ ctx 85% · Continue in a fresh session` appears. One click writes a handoff note, runs `/clear`, and starts a new session whose first prompt points at the note. The old session stays available with `claude --resume <id>`. At 95% or more Goyangi writes the note itself without a model turn. The **Fresh session** setting picks `Ask`, `Auto`, or `Off`.
 
 ### Turn flow
 
@@ -103,7 +103,7 @@ Other Claude Code sessions on this machine (and coding agents such as Codex, Ope
 - `↑ send` passes this session's handoff to that session (name, folder, current request, edited files, last messages, and the `claude --resume` command)
 - `↓ pull` asks that session for its handoff
 - `↗ focus` brings its window forward
-- A number stays with its session until this one ends or `/clear`, so "send this to session 2" always means the same session. The model has a `sessions` tool (`mcp__yaong__sessions`) that uses the same numbers
+- A number stays with its session until this one ends or `/clear`, so "send this to session 2" always means the same session. The model has a `sessions` tool (`mcp__goyangi__sessions`) that uses the same numbers
 - In the turn flow a handoff is a purple branch: `⇢ api #2` (send), `⇠ docs-1 #1` (pull)
 - If a send is refused by auto mode's review, add `SendMessage` to `permissions.allow` in settings.json
 - Coding agents take a note as a file and a typed prompt line. Their pull reads the last 200 lines of the agent's terminal
@@ -113,7 +113,7 @@ Other Claude Code sessions on this machine (and coding agents such as Codex, Ope
 Open tabs of every running browser: Chrome, Brave, Edge, Arc, Vivaldi, Chromium, ego lite, Safari, Firefox, Whale, and others that script their tabs. Each row has the browser icon, a tab number (`C2`, `B3`), `●` for the window's active tab, title, and site. `↗ focus` brings the tab forward.
 
 - A tab keeps its number until this session ends or `/clear`
-- Say "깃헙 PR 탭 내용 알려줘" or "B3 작업해줘". The model uses `browser_tabs` (`mcp__yaong__browser_tabs`): `list`, `read` (title and URL), `run` (JavaScript in that tab, with your sign-ins), `focus`
+- Say "깃헙 PR 탭 내용 알려줘" or "B3 작업해줘". The model uses `browser_tabs` (`mcp__goyangi__browser_tabs`): `list`, `read` (title and URL), `run` (JavaScript in that tab, with your sign-ins), `focus`
 - `run` needs View > Developer > Allow JavaScript from Apple Events in that browser. Firefox tabs can be listed and read but not run
 - Tabs are read when the session starts and with the refresh icon, never on a timer. A browser that isn't running is never started
 
@@ -192,7 +192,7 @@ Press `=` in the header (`⚙` on desktop). Changes apply immediately and persis
 
 0 turns an alert off. An auto-opened panel waits until the terminal is at least 110 columns wide.
 
-Initial values for some items come from plugin options (`/plugin configure yaong@yaong`): `autoOpen`, `ctxAlertPercent`, `turnCostAlertUsd`, `stallSeconds`, `sessionRows`, `tabRows`. A value changed in the settings screen takes precedence.
+Initial values for some items come from plugin options (`/plugin configure goyangi@goyangi`): `autoOpen`, `ctxAlertPercent`, `turnCostAlertUsd`, `stallSeconds`, `sessionRows`, `tabRows`. A value changed in the settings screen takes precedence.
 
 ### Refresh icon
 
@@ -200,7 +200,7 @@ Initial values for some items come from plugin options (`/plugin configure yaong
 
 ### Panel position
 
-At the bottom, Yaong closes the right split (Pane) and draws the same screen above the prompt, using at most half the terminal height. It stays visible while another mod's panel is open on the right. Shortcuts work while the area is selected (click it, or `ctrl+x tab`).
+At the bottom, Goyangi closes the right split (Pane) and draws the same screen above the prompt, using at most half the terminal height. It stays visible while another mod's panel is open on the right. Shortcuts work while the area is selected (click it, or `ctrl+x tab`).
 
 ## Good to know
 

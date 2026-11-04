@@ -165,7 +165,7 @@ export function toolClass(tool: string): string {
   if (tool === 'Edit' || tool === 'Write' || tool === 'NotebookEdit') return 'e'
   if (tool === 'Grep' || tool === 'Glob' || tool === 'LSP' || tool === 'ToolSearch') return 's'
   if (tool === 'WebFetch' || tool === 'WebSearch') return 'w'
-  if (tool === 'mcp__yaong__sessions') return 'h'
+  if (tool === 'mcp__goyangi__sessions') return 'h'
   if (tool.startsWith('mcp__')) return 'm'
   if (tool === 'Skill') return 'k'
   if (tool === 'Agent' || tool === 'Task' || tool === 'SendMessage') return 'a'
@@ -692,10 +692,10 @@ export function scopeKey(prefix: string, key: string): string {
 // Auto-update check interval. session.start fires again on every plugin reload, so don't check again in between.
 export const UPDATE_EVERY_MS = 3600_000
 
-// Whether to check for updates: the setting is on, installed from the Yaong marketplace, and the interval has passed since the last check.
+// Whether to check for updates: the setting is on, installed from the Goyangi marketplace, and the interval has passed since the last check.
 // Installs live at <config dir>/plugins/cache/<marketplace>/<plugin>/<version> ($.plugin.root). Dev copies (other marketplaces, --plugin-dir) are not checked.
 export function shouldCheckUpdate(enabled: boolean, root: string, lastAt: unknown, now: number): boolean {
-  if (!enabled || !/[/\\]plugins[/\\]cache[/\\]yaong[/\\]yaong[/\\]/.test(root)) return false
+  if (!enabled || !/[/\\]plugins[/\\]cache[/\\]goyangi[/\\]goyangi[/\\]/.test(root)) return false
   return typeof lastAt !== 'number' || now - lastAt >= UPDATE_EVERY_MS
 }
 
@@ -1200,9 +1200,9 @@ export function parsePeers(json: string): Peer[] {
 }
 
 // Handoff between sessions. send: this session's note goes to another session, where it arrives as a peer message.
-// pull: a request goes to another session; Yaong there answers it with its own note without a model turn,
-// and a session without Yaong reads the request as plain words and can answer with SendMessage.
-export const PULL_MARK = '[yaong:pull]'
+// pull: a request goes to another session; Goyangi there answers it with its own note without a model turn,
+// and a session without Goyangi reads the request as plain words and can answer with SendMessage.
+export const PULL_MARK = '[goyangi:pull]'
 export function handoffNote(x: { name: string; sessionId: string; cwd: string; prompt: string; files: readonly string[]; messages: readonly { role: string; text?: string }[] }): string {
   const clip = (s: string, n: number) => { const t = s.replace(/\s+/g, ' ').trim(); return t.length > n ? `${t.slice(0, n - 1)}…` : t }
   const recent = x.messages.filter(m => (m.role === 'user' || m.role === 'assistant') && (m.text ?? '').trim()).slice(-6).map(m => `- ${m.role}: ${clip(m.text!, 300)}`)

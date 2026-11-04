@@ -22,7 +22,7 @@ test('the session log shows everything, then a toggle keeps only key events; leg
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000, percent: 12 }, rateLimits: [] } }))
   on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false } as never }))
   await $.tool.call({ tool: 'Bash', command: 'echo quiet' })
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 40 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 40 } as never })
   expect(await ui.find({ text: /echo quiet/ })).toBeDefined()
   expect(await ui.find({ text: /all 1/ })).toBeDefined()
   expect(await ui.find({ text: /^ctx +$/ })).toBeDefined()
@@ -40,7 +40,7 @@ test('subagent boxes show their token share', async ($, on) => {
   on('tool.call', { tool: 'Read' }, () => ({ result: {} as never }))
   await $.agent.spawn({ prompt: 'x', description: 'find', subagentType: 'Explore' } as never)
   await $.tool.call({ tool: 'Read', file_path: '/a/n.md', agentId: 'a1' } as never)
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 40 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 40 } as never })
   expect(await ui.find({ text: /1 tools · tok \d+%/ })).toBeDefined()
   await ui.unmount()
 })
@@ -60,7 +60,7 @@ test('session log scrollbar: with more rows than fit, a position bar appears on 
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
   on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false } as never }))
   for (let i = 0; i < 8; i++) await $.tool.call({ tool: 'Bash', command: `echo ${i}` })
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 40 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 40 } as never })
   // The bar is drawn by the scrollbar surface module: the last rows are in view, so the thumb ┃ sits at the bottom
   const bar = async () => (await ui.findAll({ type: 'Text', in: 'log-sb' })).map(n => n.text).join('')
   expect(await bar()).toMatch(/^│+┃+$/)
@@ -91,7 +91,7 @@ test('session log scrollbar: with more rows than fit, a position bar appears on 
 
 test('a wide panel has no tabs and draws every section', async ($, on) => {
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 40 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 40 } as never })
   expect(await ui.find({ type: 'Text', text: /1 advisor/ })).toBeUndefined()
   expect(await ui.find({ text: /no server tools/ })).toBeDefined()
   expect(await ui.find({ text: /no subagents yet/ })).toBeDefined()
@@ -103,7 +103,7 @@ test('the key events view also scrolls with ▲ ▼', async ($, on) => {
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
   on('tool.call', { tool: 'Bash' }, () => { throw new Error('boom') })
   for (let i = 0; i < 8; i++) await $.tool.call({ tool: 'Bash', command: `false ${i}` }).catch(() => undefined)
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 40 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 40 } as never })
   await ui.press({ key: 'log-all' }) // switch to the key events view
   expect(await ui.find({ text: /key events 5–8 \/ 8/ })).toBeDefined()
   expect(await ui.find({ type: 'Button', text: /^▲$/ })).toBeDefined()
@@ -133,7 +133,7 @@ test('long row cards in the session log stay within the log list area (4 rows)',
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
   on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false } as never }))
   await $.tool.call({ tool: 'Bash', command: `echo ${'x'.repeat(300)}` })
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 40 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 40 } as never })
   // Only the session log's cards (the top boxes have 5 rows of their own)
   const cards = (await ui.findAll({ type: 'Box' })).filter(b => String(b.key ?? '').startsWith('ac-log-')).map(b => b.props as { position?: string; top?: number; height?: number })
     .filter(p => p.position === 'absolute' && p.top !== undefined && p.height !== undefined)
@@ -154,7 +154,7 @@ test('the session map legend shows in full even at narrow widths', async ($, on)
   on('turn.complete', () => ({ text: '' }))
   await $.turn.start({ text: 'p1', turnId: 't1' } as never)
   await $.turn.complete({ turnId: 't1', answer: '', durationMs: 10, isAborted: false, reason: 'answer' } as never)
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 100, rows: 40 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 100, rows: 40 } as never })
   const legend = (await ui.findAll({ type: 'Text', text: /Bash .*compact/ })).map(n => n.props as { wrap?: string })
   expect(legend.length).toBeGreaterThan(0)
   expect(legend.every(p => p.wrap !== 'truncate')).toBe(true)
@@ -175,7 +175,7 @@ test('in-progress steps use Claude Code spinner glyphs and ◆ when done', async
   await $.turn.start({ text: 'progress', turnId: 't1' } as never)
   const it = $.turn.step({ turnId: 't1', index: 0, model: 'opus', messageCount: 1 } as never)[Symbol.asyncIterator]()
   await it.next()
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 40 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 40 } as never })
   expect(await ui.find({ text: /^[·✢✳✶✻✽] step 1$/ })).toBeDefined()
   release()
   while (!(await it.next()).done) { /* drain */ }
@@ -186,7 +186,7 @@ test('in-progress steps use Claude Code spinner glyphs and ◆ when done', async
 
 test('footer shortcut hints wrap to the next row at narrow widths instead of being cut', async ($, on) => {
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 100, rows: 40 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 100, rows: 40 } as never })
   const nav = (await ui.findAll({ type: 'Text', text: /k\/j scroll session log/ })).map(n => n.props as { wrap?: string })
   expect(nav.length).toBeGreaterThan(0)
   expect(nav.every(p => p.wrap !== 'truncate')).toBe(true)
@@ -212,7 +212,7 @@ test('footer shortcut hints wrap to the next row at narrow widths instead of bei
 
 test('footer: three rows, each starting with a name (Sections, Panel, Keys), with the navigation shortcut hints on the Keys row', async ($, on) => {
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 40 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 40 } as never })
   expect(await ui.find({ text: /^Sections$/ })).toBeDefined()
   expect(await ui.find({ text: /^Panel$/ })).toBeDefined()
   // The old [shortcuts] title and '|' separators are gone
@@ -239,7 +239,7 @@ test('running tool cards and branch status also use the spinner glyphs', async (
   for await (const _ of $.turn.step({ turnId: 't1', index: 0, model: 'opus', messageCount: 1 } as never)) { /* */ }
   const call = $.tool.call({ tool: 'Read', file_path: '/a/b.ts' } as never)
   await new Promise<void>(r => setTimeout(r, 0))
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 40 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 40 } as never })
   expect(await ui.find({ text: /^[·✢✳✶✻✽] running · / })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /◐/ })).toBeUndefined()
   release()
@@ -247,7 +247,7 @@ test('running tool cards and branch status also use the spinner glyphs', async (
   await ui.unmount()
 })
 
-test('the command is registered as /yaong and running it opens the panel', async ($, on) => {
+test('the command is registered as /goyangi and running it opens the panel', async ($, on) => {
   const names: string[] = []
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
   on('command.register', ($, e) => { names.push((e as { name: string }).name); return { value: undefined } as never })
@@ -255,18 +255,18 @@ test('the command is registered as /yaong and running it opens the panel', async
   on('ui.open', () => ({ value: { isPlaced: true } }) as never)
   mock.clock(on, { now: 1_700_000_000_000 })
   await $.session.start({ source: 'startup', cwd: '/tmp' } as never)
-  expect(names).toEqual(['yaong'])
-  const r = await $.command.run({ command: 'yaong', args: '' } as never)
-  expect((r as { text?: string }).text).toMatch(/Opened the Yaong panel/)
+  expect(names).toEqual(['goyangi'])
+  const r = await $.command.run({ command: 'goyangi', args: '' } as never)
+  expect((r as { text?: string }).text).toMatch(/Opened the Goyangi panel/)
 })
 
-test('opening with /yaong expands every folded section', async ($, on) => {
+test('opening with /goyangi expands every folded section', async ($, on) => {
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
   on('ui.open', () => ({ value: { isPlaced: true } }) as never)
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 50 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 50 } as never })
   await ui.press({ key: 'fold-log' })
   expect(await ui.find({ text: /^l session log ▸$/ })).toBeDefined()
-  await $.command.run({ command: 'yaong', args: '' } as never)
+  await $.command.run({ command: 'goyangi', args: '' } as never)
   expect(await ui.find({ text: /^l session log ▾$/ })).toBeDefined()
   await ui.unmount()
 })
@@ -280,7 +280,7 @@ test('starting a session opens the panel (autoOpen on by default)', async ($, on
   mock.clock(on, { now: 1_700_000_000_000 })
   await $.session.start({ source: 'startup', cwd: '/tmp' } as never)
   await new Promise<void>(r => setTimeout(r, 0))
-  expect(opened).toEqual(['yaong'])
+  expect(opened).toEqual(['goyangi'])
 })
 
 test('with autoOpen off, starting a session doesn\'t open the panel', { options: { autoOpen: false } }, async ($, on) => {
@@ -301,7 +301,7 @@ test('changing a setting doesn\'t revert a view mode saved by another session', 
   on('store.set', ($, e) => { const { key, value } = e as { key: string; value: unknown }; kv.set(key, value); return { value: undefined } as never })
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
   mock.clock(on, { now: 1_700_000_000_000 })
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 50 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 50 } as never })
   // After this panel opened, another session switched to the walk view and saved it
   kv.set('prefs', { view: 'avatar' })
   await ui.press({ key: 'settings' })
@@ -319,7 +319,7 @@ test('settings screen: opens with ⚙; changing auto open and thresholds is save
   on('session.start', ($, e) => ({ cwd: (e as { cwd: string }).cwd }) as never)
   on('ui.open', ($, e) => { opened.push((e as { id: string }).id); return { value: { isPlaced: true } } as never })
   mock.clock(on, { now: 1_700_000_000_000 })
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 50 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 50 } as never })
   expect(await ui.find({ type: 'Text', text: /^⚙ Settings$/ })).toBeUndefined()
   await ui.press({ key: 'settings' })
   expect(await ui.find({ text: /^⚙ Settings$/ })).toBeDefined()
@@ -340,7 +340,7 @@ test('settings screen: opens with ⚙; changing auto open and thresholds is save
   await new Promise<void>(r => setTimeout(r, 0))
   expect(opened).toEqual([])
   // Resetting to defaults clears the saved values
-  const ui2 = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 50 } as never })
+  const ui2 = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 50 } as never })
   // Reopening shows the saved value (90%) as is (the settings screen stays open)
   expect(await ui2.find({ type: 'Text', text: /^90%$/ })).toBeDefined()
   await ui2.press({ key: 'settings-reset' })
@@ -349,11 +349,11 @@ test('settings screen: opens with ⚙; changing auto open and thresholds is save
   // Back to defaults (auto open on), so the next session opens it
   await $.session.start({ source: 'startup', cwd: '/tmp' } as never)
   await new Promise<void>(r => setTimeout(r, 0))
-  expect(opened).toEqual(['yaong'])
+  expect(opened).toEqual(['goyangi'])
 })
 
 
-test('panel position: switching to bottom closes the Pane and draws above the prompt; /yaong also opens at the bottom, and it can move back right', async ($, on) => {
+test('panel position: switching to bottom closes the Pane and draws above the prompt; /goyangi also opens at the bottom, and it can move back right', async ($, on) => {
   const calls: string[] = []
   mock.store(on, {})
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
@@ -367,18 +367,18 @@ test('panel position: switching to bottom closes the Pane and draws above the pr
   on('ui.render', { component: 'AbovePrompt' }, ($, e) => { const { Box } = $.ui.resolve(e); return <Box /> })
   mock.clock(on, { now: 1_700_000_000_000 })
   const bandProps = { hasSurvey: false, isWorking: false, maxRows: 30, bodyColumns: 120 } as never
-  const mountBand = () => $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'AbovePrompt', props: bandProps, viewport: { columns: 140, rows: 60 } as never })
+  const mountBand = () => $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'AbovePrompt', props: bandProps, viewport: { columns: 140, rows: 60 } as never })
   // In the default (right), the panel isn't drawn above the prompt. This area stays mounted while the position changes.
   const band = await mountBand()
-  expect(await band.find({ type: 'Text', text: /^ 🐱 Yaong $/ })).toBeUndefined()
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 50 } as never })
+  expect(await band.find({ type: 'Text', text: /^ 🐱 Goyangi $/ })).toBeUndefined()
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 50 } as never })
   await ui.press({ key: 'settings' })
   expect(await ui.find({ text: /^Right$/ })).toBeDefined()
   await ui.press({ key: 'set-position' })
   await new Promise<void>(r => setTimeout(r, 0))
-  expect(calls).toEqual(['close:yaong'])
+  expect(calls).toEqual(['close:goyangi'])
   await ui.unmount()
-  expect(await band.find({ type: 'Text', text: /^ 🐱 Yaong $/ })).toBeDefined()
+  expect(await band.find({ type: 'Text', text: /^ 🐱 Goyangi $/ })).toBeDefined()
   expect(await band.find({ text: /^Bottom \(above prompt\)$/ })).toBeDefined()
   // At the bottom, the header's move icon points right (where pressing it sends the panel)
   expect(((await band.find({ type: 'Button', key: 'move' }))!.props as { label?: string }).label).toBe(' > ')
@@ -390,22 +390,22 @@ test('panel position: switching to bottom closes the Pane and draws above the pr
   // Closing with [x] removes it from the area
   await band.press({ key: 'close' })
   await new Promise<void>(r => setTimeout(r, 0))
-  expect(await band.find({ type: 'Text', text: /^ 🐱 Yaong $/ })).toBeUndefined()
-  // /yaong doesn't open the Pane; it redraws in the bottom area
-  await $.command.run({ command: 'yaong', args: '' } as never)
-  expect(calls).toEqual(['close:yaong'])
-  expect(await band.find({ type: 'Text', text: /^ 🐱 Yaong $/ })).toBeDefined()
+  expect(await band.find({ type: 'Text', text: /^ 🐱 Goyangi $/ })).toBeUndefined()
+  // /goyangi doesn't open the Pane; it redraws in the bottom area
+  await $.command.run({ command: 'goyangi', args: '' } as never)
+  expect(calls).toEqual(['close:goyangi'])
+  expect(await band.find({ type: 'Text', text: /^ 🐱 Goyangi $/ })).toBeDefined()
   // Moving back right with the header's ⇵ clears the area and opens the Pane
   await band.press({ key: 'move' })
   await new Promise<void>(r => setTimeout(r, 0))
-  expect(calls).toEqual(['close:yaong', 'open:yaong'])
-  expect(await band.find({ type: 'Text', text: /^ 🐱 Yaong $/ })).toBeUndefined()
+  expect(calls).toEqual(['close:goyangi', 'open:goyangi'])
+  expect(await band.find({ type: 'Text', text: /^ 🐱 Goyangi $/ })).toBeUndefined()
   await band.unmount()
 })
 
 test('header button tooltips: each button gets a hidden description card after the sections', async ($, on) => {
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 50 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 50 } as never })
   // The test tree doesn't carry hover values, so pairs are checked by key: the tip-box-* box around each button and the hidden card tip-*
   type P = { key?: string; position?: string; display?: string }
   const boxes = (await ui.findAll({ type: 'Box' })).map(b => b.props as P)
@@ -424,14 +424,14 @@ test('header button tooltips: each button gets a hidden description card after t
 
 test('header: one row even at narrow widths; the status chip and buttons stay on the right and the summary is cut', async ($, on) => {
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: { bodyColumns: 40 } as never, requestId: 'yaong', viewport: { columns: 42, rows: 40 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: { bodyColumns: 40 } as never, requestId: 'goyangi', viewport: { columns: 42, rows: 40 } as never })
   const boxes = await ui.findAll({ type: 'Box' })
   const header = boxes.find(b => (b.props as { backgroundColor?: string; height?: number }).backgroundColor === 'text' && (b.props as { height?: number }).height === 1)
   expect(header).toBeDefined()
   expect((header!.props as { overflow?: string }).overflow).toBe('hidden')
   // The summary and logo can shrink to nothing (minWidth 0; the terminal layout keeps a text box at its minimum width otherwise), the summary first, so the buttons always stay
   expect((await ui.find({ type: 'Box', key: 'head-summary' }))!.props).toMatchObject({ flexShrink: 1, minWidth: 0, overflow: 'hidden' })
-  expect(await ui.find({ type: 'Text', text: ' 🐱 Yaong ' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: ' 🐱 Goyangi ' })).toBeDefined()
   // The status chip sits in the flow, in a non-shrinking right group with the buttons (nothing overlaid), so narrow widths cut the summary instead
   const right = await ui.find({ type: 'Box', key: 'head-right' })
   expect((right!.props as { flexShrink?: number }).flexShrink).toBe(0)
@@ -447,7 +447,7 @@ test('header: one row even at narrow widths; the status chip and buttons stay on
 
 test('every button has a hover scope that turns it bold and underlined', async ($, on) => {
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 140, rows: 60 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 140, rows: 60 } as never })
   // The engine moves hover from props into the element's hover field and doesn't carry it in find results. Walk the drawn tree directly.
   type Node = { type?: string; hover?: { scope?: string; bold?: boolean; underline?: boolean }; children?: unknown[] }
   const buttons: Node[] = []
@@ -475,7 +475,7 @@ test('the view button toggles between the walk view and the default view', async
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
   on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false } as never }))
   await $.tool.call({ tool: 'Bash', command: 'echo office' })
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 40 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 40 } as never })
   expect(await ui.find({ text: /TURN FLOW/ })).toBeDefined()
   await ui.press({ key: 'view-office' })
   expect(await ui.find({ text: /TURN WALK/ })).toBeDefined()
@@ -501,7 +501,7 @@ test('walk view: subagents work in boxes and show failure when they fail; main\'
   void $.tool.call({ tool: 'Read', file_path: '/a/n.md', agentId: 'a1' } as never)
   const bash = $.tool.call({ tool: 'Bash', command: 'sleep 5' } as never)
   await new Promise<void>(r => setTimeout(r, 0))
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 40 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 40 } as never })
   await ui.press({ key: 'view-office' })
   // Subagent box: name, status, current work
   expect(await ui.find({ text: /^Explore$/ })).toBeDefined()
@@ -533,7 +533,7 @@ test('walk view pixels (robot, props, clouds, ground, flags): characters in the 
   const block = /[▀▄▔▕\u{1CD00}-\u{1CEBF}]/u
   const lines: Record<string, number> = {}
   for (const surface of ['terminal', 'desktop'] as const) {
-    const ui = await $.ui.mount({ plugin: 'yaong', surface, component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 40 } as never })
+    const ui = await $.ui.mount({ plugin: 'goyangi', surface, component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 40 } as never })
     await ui.press({ key: 'view-office' })
     expect(await ui.find({ text: /TURN WALK/ })).toBeDefined()
     // Number of Text nodes using pixel, ground, and pole characters
@@ -580,7 +580,7 @@ test('walk view mood: night sky at a 95% 5h limit, an advice bubble, and the sS$
   for await (const _ of $.turn.step({ turnId: 't1', index: 0, model: 'opus', messageCount: 1 } as never)) { /* drain */ }
   await new Promise<void>(r => setTimeout(r, 0))
   for (const surface of ['terminal', 'desktop'] as const) {
-    const ui = await $.ui.mount({ plugin: 'yaong', surface, component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 40 } as never })
+    const ui = await $.ui.mount({ plugin: 'goyangi', surface, component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 40 } as never })
     await ui.press({ key: 'view-office' })
     if (surface === 'terminal') {
       // Night sky (dark navy) behind the clouds; the warning bubble (context 85%) over main's head
@@ -617,7 +617,7 @@ test('walk view replay: clicking a past turn in the session map walks main throu
   await new Promise<void>(r => setTimeout(r, 0))
   await $.turn.start({ text: 'second turn', turnId: 't2' } as never)
   await new Promise<void>(r => setTimeout(r, 0))
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 140, rows: 60 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 140, rows: 60 } as never })
   await ui.press({ key: 'view-office' })
   await ui.press({ key: 'map-open-t1' })
   expect(await ui.find({ text: /T1 replay · latest/ })).toBeDefined()
@@ -641,7 +641,7 @@ test('walk view replay of a long turn starts with the pet on the first spot at a
   await $.turn.start({ text: 'next', turnId: 't2' } as never)
   await new Promise<void>(r => setTimeout(r, 0))
   for (let columns = 100; columns <= 134; columns += 2) {
-    const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns, rows: 60 } as never })
+    const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns, rows: 60 } as never })
     await ui.press({ key: 'view-office' })
     await ui.press({ key: 'map-open-t1' })
     expect(await ui.find({ text: /T1 replay/ })).toBeDefined()
@@ -661,7 +661,7 @@ test('walk view: a subagent that just finished runs back to main (↩ main) befo
   await $.agent.spawn({ prompt: 'x', description: 'find docs', subagentType: 'Explore' } as never)
   await $.turn.complete({ turnId: 't1', agentId: 'a1', answer: 'done', durationMs: 10, isAborted: false, reason: 'answer' } as never)
   await new Promise<void>(r => setTimeout(r, 0))
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 40 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 40 } as never })
   await ui.press({ key: 'view-office' })
   expect(await ui.find({ text: /↩ main/ })).toBeDefined()
   await ui.unmount()
@@ -674,7 +674,7 @@ test('backgrounds: dark colors on dark terminals, pale colors on light terminals
   on('config.list', () => ({ value: [{ key: 'theme', value: theme }] }) as never)
   const DARK = ['#2f6f57', '#2a2f45', 'subtle']
   const bgs = async (surface: 'terminal' | 'desktop') => {
-    const ui = await $.ui.mount({ plugin: 'yaong', surface, component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 40 } as never })
+    const ui = await $.ui.mount({ plugin: 'goyangi', surface, component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 40 } as never })
     const v = (await ui.findAll({ type: 'Box' })).map(b => b.props.backgroundColor).filter((c): c is string => typeof c === 'string')
     await ui.unmount()
     return v
@@ -700,7 +700,7 @@ test('desktop: the session log is 4 rows, the scrollbar is a painted box instead
   on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false } as never }))
   for (let i = 0; i < 12; i++) await $.tool.call({ tool: 'Bash', command: `echo ${i}` })
   const logRows = async (surface: 'terminal' | 'desktop', columns = 120) => {
-    const ui = await $.ui.mount({ plugin: 'yaong', surface, component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns, rows: 80 } as never })
+    const ui = await $.ui.mount({ plugin: 'goyangi', surface, component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns, rows: 80 } as never })
     const texts = await ui.findAll({ type: 'Text' })
     const rows = texts.filter(t => /^\d\d:\d\d:\d\d $/.test(t.text)).length
     const glyphs = texts.filter(t => /^[┃│]$/.test(t.text)).length
@@ -745,7 +745,7 @@ test('walk view running card: long commands split into two rows and shorten with
   void $.tool.call({ tool: 'Bash', command: `echo ${'x'.repeat(300)}` } as never)
   await new Promise<void>(r => setTimeout(r, 0))
   for (const surface of ['terminal', 'desktop'] as const) {
-    const ui = await $.ui.mount({ plugin: 'yaong', surface, component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 40 } as never })
+    const ui = await $.ui.mount({ plugin: 'goyangi', surface, component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 40 } as never })
     await ui.press({ key: 'view-office' })
     const head = await ui.find({ type: 'Text', text: /^⚙ Bash echo x+$/ })
     expect(head).toBeDefined()
@@ -763,7 +763,7 @@ test('mouse wheel: over the session log and session map it scrolls that list; el
   on('turn.start', ($, e) => ({ turnId: e.turnId }))
   on('turn.complete', () => ({ text: '' }))
   on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false } as never }))
-  // The engine's panel scroll: reaching here means Yaong didn't move a list
+  // The engine's panel scroll: reaching here means Goyangi didn't move a list
   let engine = 0
   on('ui.scroll', () => { engine++; return {} })
   for (let i = 0; i < 8; i++) {
@@ -771,9 +771,9 @@ test('mouse wheel: over the session log and session map it scrolls that list; el
     for (let k = 0; k < 4; k++) await $.tool.call({ tool: 'Bash', command: `echo ${i}-${k}` })
     await $.turn.complete({ turnId: `t${i}`, answer: '', durationMs: 10, isAborted: false, reason: 'end_turn' } as never)
   }
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 40 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 40 } as never })
   const wheel = (fromBottom: number, by: number) => $.ui.scroll({
-    component: 'Pane', requestId: 'yaong', offset: 0, by, bodyRows: 40, contentRows: 40, origin: { kind: 'person' }, pointer: { column: 10, row: 40 - 1 - fromBottom },
+    component: 'Pane', requestId: 'goyangi', offset: 0, by, bodyRows: 40, contentRows: 40, origin: { kind: 'person' }, pointer: { column: 10, row: 40 - 1 - fromBottom },
   } as never)
   const paused = async () => (await ui.findAll({ type: 'Text', text: /⏸/ })).length
   expect(await paused()).toBe(0)
@@ -800,7 +800,7 @@ test('header buttons: 3-cell icon buttons side by side in the terminal; on deskt
   mock.clock(on, { now: 1_700_000_000_000 })
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
   for (const surface of ['terminal', 'desktop'] as const) {
-    const ui = await $.ui.mount({ plugin: 'yaong', surface, component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 40 } as never })
+    const ui = await $.ui.mount({ plugin: 'goyangi', surface, component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 40 } as never })
     const btn = async (key: string) => (await ui.find({ type: 'Button', key }))!.props
     if (surface === 'terminal') {
       expect(await btn('move')).toMatchObject({ plain: true, label: ' v ' })
@@ -846,7 +846,7 @@ test('desktop scrollbar: dragging moves the session log to that position, and th
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
   on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false } as never }))
   for (let i = 0; i < 20; i++) await $.tool.call({ tool: 'Bash', command: `echo ${i}` })
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'desktop', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 60 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'desktop', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 60 } as never })
   const settle = () => new Promise<void>(r => setTimeout(r, 0))
   const thumb = async () => (await ui.findAll({ type: 'Box', in: 'log-sb' })).find(b => b.props.backgroundColor === '#7dd3a8' || b.props.backgroundColor === '#f6c177')!
   const logPaused = async () => (await ui.findAll({ type: 'Text', text: /⏸ paused/ })).length
@@ -874,7 +874,7 @@ test('turn flow node boxes: fixed 7 rows in the terminal; on desktop 5 content r
   await $.turn.start({ text: 'flow', turnId: 't1' } as never)
   await $.tool.call({ tool: 'Bash', command: 'echo flow' })
   for (const surface of ['terminal', 'desktop'] as const) {
-    const ui = await $.ui.mount({ plugin: 'yaong', surface, component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 40 } as never })
+    const ui = await $.ui.mount({ plugin: 'goyangi', surface, component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 40 } as never })
     const nodes = (await ui.findAll({ type: 'Box' })).filter(b => b.props.borderStyle === 'round' && b.props.justifyContent === 'center')
     expect(nodes.length).toBeGreaterThan(0)
     for (const b of nodes) {
@@ -903,7 +903,7 @@ test('walk view pixels: Image (pixels) on kitty and Ghostty terminals, octant ch
   for (env of [{ TERM: 'xterm-kitty' }, { TERM: 'xterm-256color' }, { TERM: 'xterm-256color', TERM_PROGRAM: 'WezTerm' }]) {
     await $.session.start({ cwd: '/tmp', source: 'startup' } as never)
     await $.agent.spawn({ prompt: 'x', description: 'find docs', subagentType: 'Explore' } as never)
-    const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 40 } as never })
+    const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 40 } as never })
     await ui.press({ key: 'view-office' })
     const images = await ui.findAll({ type: 'Image' })
     const texts = await ui.findAll({ type: 'Text' })
@@ -931,7 +931,7 @@ test('top box rows: shortened with … past the width, with a full-content hover
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
   for (const surface of ['terminal', 'desktop'] as const) {
     // At 70 columns the left column beside the gauges is narrower than the token row, so it overflows and gets a card holding the full row
-    const ui = await $.ui.mount({ plugin: 'yaong', surface, component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 70, rows: 40 } as never })
+    const ui = await $.ui.mount({ plugin: 'goyangi', surface, component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 70, rows: 40 } as never })
     const card = (await ui.findAll({ type: 'Text' })).filter(n => n.props.color === '#e6e9f5').map(n => n.text.trimStart()).join('')
     expect(card).toContain('steps 0 · tools 0 · ↑ 0 · ⟳ 0 · ↓ 0')
     // Cards open within the box. Opened above the row (bottom), they spilled out of the box near its first rows and covered the header.
@@ -948,7 +948,7 @@ test('top box rows: shortened with … past the width, with a full-content hover
 
 test('the session log title shrinks on narrow panels so the buttons on the right stay inside the box', async ($, on) => {
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: { bodyColumns: 50 } as never, requestId: 'yaong', viewport: { columns: 60, rows: 60 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: { bodyColumns: 50 } as never, requestId: 'goyangi', viewport: { columns: 60, rows: 60 } as never })
   expect((await ui.find({ type: 'Box', key: 'log-title' }))!.props).toMatchObject({ flexShrink: 1, minWidth: 0, overflow: 'hidden' })
   expect(await ui.find({ type: 'Button', key: 'log-down' })).toBeDefined()
   await ui.unmount()
@@ -956,7 +956,7 @@ test('the session log title shrinks on narrow panels so the buttons on the right
 
 test('the terminal header stays at the top of the window while the panel is scrolled', async ($, on) => {
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
-  const mount = (offset: number) => $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: { placement: 'dock', scroll: { offset, bodyRows: 30 } } as never, requestId: 'yaong', viewport: { columns: 120, rows: 40 } as never })
+  const mount = (offset: number) => $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: { placement: 'dock', scroll: { offset, bodyRows: 30 } } as never, requestId: 'goyangi', viewport: { columns: 120, rows: 40 } as never })
   // Not scrolled: the header is in the flow, nothing sticky
   let ui = await mount(0)
   expect(await ui.find({ type: 'Box', key: 'head-sticky' })).toBeUndefined()
@@ -967,7 +967,7 @@ test('the terminal header stays at the top of the window while the panel is scro
   const sticky = await ui.find({ type: 'Box', key: 'head-sticky' })
   // A column box, so the header inside stretches to the full panel width (a row box would shrink it to its content)
   expect(sticky!.props).toMatchObject({ position: 'absolute', top: 12, width: 116, flexDirection: 'column' })
-  expect(sticky!.text).toMatch(/Yaong/)
+  expect(sticky!.text).toMatch(/Goyangi/)
   expect((await ui.findAll({ type: 'Button', key: 'close' })).length).toBe(1)
   expect(await ui.find({ type: 'Box', key: 'head-space' })).toBeDefined()
   await ui.unmount()
@@ -975,10 +975,10 @@ test('the terminal header stays at the top of the window while the panel is scro
 
 test('the header shows no plugin version (it is in the settings screen)', async ($, on) => {
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 50 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 50 } as never })
   // The test environment can't read plugin.json, so no version text is drawn here; check that the header holds no version or separator
   const header = (await ui.findAll({ type: 'Box' })).find(b => (b.props as { backgroundColor?: string; height?: number }).backgroundColor === 'text' && (b.props as { height?: number }).height === 1)
-  expect(header!.text).toMatch(/^ 🐱 Yaong +T\d+/)
+  expect(header!.text).toMatch(/^ 🐱 Goyangi +T\d+/)
   expect(header!.text).not.toMatch(/ v\d|\|/)
   await ui.unmount()
 })
@@ -986,16 +986,16 @@ test('the header shows no plugin version (it is in the settings screen)', async 
 test('narrow terminal panels drop header parts in steps so the buttons always fit', async ($, on) => {
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
   const head = async (body: number) => {
-    const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: { bodyColumns: body } as never, requestId: 'yaong', viewport: { columns: body + 2, rows: 60 } as never })
+    const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: { bodyColumns: body } as never, requestId: 'goyangi', viewport: { columns: body + 2, rows: 60 } as never })
     const h = (await ui.findAll({ type: 'Box' })).find(b => (b.props as { backgroundColor?: string; height?: number }).backgroundColor === 'text' && (b.props as { height?: number }).height === 1)!
     await ui.unmount()
     return { text: h.text, width: (h.props as { width?: number }).width }
   }
   // Header width = body - 2 (scrollbar). Right group = status chip (6) + gap + buttons (12) = 19; with the logo (14) and a margin: 34; with the mark (4): 24
-  expect((await head(60)).text).toMatch(/^ 🐱 Yaong .*○ idle v  =  -  x $/)
+  expect((await head(60)).text).toMatch(/^ 🐱 Goyangi .*○ idle v  =  -  x $/)
   // The left part's width is set outright: header (58) - right group (19) - gap (1) = 38
   {
-    const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: { bodyColumns: 60 } as never, requestId: 'yaong', viewport: { columns: 62, rows: 60 } as never })
+    const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: { bodyColumns: 60 } as never, requestId: 'goyangi', viewport: { columns: 62, rows: 60 } as never })
     expect(((await ui.find({ type: 'Box', key: 'head-left' }))!.props as { width?: number }).width).toBe(38)
     await ui.unmount()
   }
@@ -1008,7 +1008,7 @@ test('narrow terminal panels drop header parts in steps so the buttons always fi
 
 test('narrow panels: section titles stay on one row, settings values never wrap, and the footer uses short labels', async ($, on) => {
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: { bodyColumns: 40 } as never, requestId: 'yaong', viewport: { columns: 42, rows: 60 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: { bodyColumns: 40 } as never, requestId: 'goyangi', viewport: { columns: 42, rows: 60 } as never })
   // Section titles sit in a one-row box that clips, so they never wrap word by word into a column
   for (const k of ['side', 'flow', 'agents', 'map', 'log']) expect((await ui.find({ type: 'Box', key: `sec-${k}` }))!.props).toMatchObject({ height: 1, overflow: 'hidden', minWidth: 0 })
   // Short forms on narrow panels
@@ -1023,14 +1023,14 @@ test('narrow panels: section titles stay on one row, settings values never wrap,
   expect(control!.props.flexShrink).toBe(0)
   await ui.unmount()
   // Under 34 columns the View label is left out
-  const tiny = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: { bodyColumns: 30 } as never, requestId: 'yaong', viewport: { columns: 32, rows: 60 } as never })
+  const tiny = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: { bodyColumns: 30 } as never, requestId: 'goyangi', viewport: { columns: 32, rows: 60 } as never })
   expect(await tiny.find({ type: 'Text', text: /^View$/ })).toBeUndefined()
   await tiny.unmount()
 })
 
 test('the terminal settings screen is an overlay under the header at the top of the visible window, wherever the panel is scrolled', async ($, on) => {
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
-  const mount = (offset: number) => $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: { placement: 'dock', scroll: { offset, bodyRows: 30 } } as never, requestId: 'yaong', viewport: { columns: 120, rows: 40 } as never })
+  const mount = (offset: number) => $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: { placement: 'dock', scroll: { offset, bodyRows: 30 } } as never, requestId: 'goyangi', viewport: { columns: 120, rows: 40 } as never })
   // Scrolled 20 rows: the overlay sits right under the sticky header (row 21), painted so the rows under it don't show through
   let ui = await mount(20)
   await ui.press({ key: 'settings' })
@@ -1056,7 +1056,7 @@ test('settings: Character switches cat and dog, persists, and maps an old saved 
   const kv = new Map<string, unknown>([['prefs', { character: 'robot' }]])
   on('store.get', ($, e) => ({ value: kv.get((e as { key: string }).key) }) as never)
   on('store.set', ($, e) => { const { key, value } = e as { key: string; value: unknown }; kv.set(key, value); return { value: undefined } as never })
-  const ui = await $.ui.mount({ plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 120, rows: 50 } as never })
+  const ui = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 50 } as never })
   await ui.press({ key: 'settings' })
   const label = async () => ((await ui.find({ type: 'Button', key: 'set-character' }))!.props as { label?: string }).label
   expect(await label()).toBe('Cat')

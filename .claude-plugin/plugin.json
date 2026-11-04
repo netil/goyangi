@@ -1,7 +1,7 @@
 {
-  "name": "yaong",
+  "name": "goyangi",
   "version": "1.0.1",
-  "description": "A panel beside the Claude Code conversation: watch each turn's steps, tools, tokens, cost, and usage limits; hand work between sessions, coding agents, and browser tabs; and continue in a fresh session before the context fills (/yaong)",
+  "description": "A panel beside the Claude Code conversation: watch each turn's steps, tools, tokens, cost, and usage limits; hand work between sessions, coding agents, and browser tabs; and continue in a fresh session before the context fills (/goyangi)",
   "author": {
     "name": "netil"
   },
@@ -10,7 +10,7 @@
     "autoOpen": {
       "type": "boolean",
       "title": "Open the panel on session start",
-      "description": "Opens the Yaong panel when a session starts. If the terminal is too narrow, waits until it is wide enough",
+      "description": "Opens the Goyangi panel when a session starts. If the terminal is too narrow, waits until it is wide enough",
       "default": true
     },
     "ctxAlertPercent": {
@@ -44,7 +44,7 @@
       "default": 4
     }
   },
-  "homepage": "https://github.com/netil/yaong",
-  "repository": "https://github.com/netil/yaong",
+  "homepage": "https://github.com/netil/goyangi",
+  "repository": "https://github.com/netil/goyangi",
   "license": "MIT"
 }

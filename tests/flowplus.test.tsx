@@ -3,7 +3,7 @@ import { firstLine, toolResult, addFile, timeStrip, overlaps, emptyTree, timeSha
 import type { FlowItem } from '../types'
 
 declare const setTimeout: (fn: () => void, ms: number) => unknown
-const PANE = { plugin: 'yaong', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'yaong', viewport: { columns: 140, rows: 60 } as never } as const
+const PANE = { plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 140, rows: 60 } as never } as const
 const tick = (ms = 0) => new Promise<void>(r => setTimeout(r, ms))
 const usage = () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } as never })
 const item = (id: string, kind: FlowItem['kind'], startedAt: number, endedAt?: number): FlowItem => ({ id, kind, label: id, meta: '', ok: true, startedAt, endedAt })
