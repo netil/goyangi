@@ -129,6 +129,6 @@ export type SessionRecord = { id: string; startedAt: number; updatedAt: number; 
 
 declare module 'claude-code' {
   interface PluginState {
-    'goyangi': { tree: Tree; tick: number; fold: Fold; logEnd: number; mapEnd: number; flowPage: number; questPage: number; focus: string; kidsFolded: string; viewTurn: string; replayFrom: number; mapTall: boolean; mapBasis: string; tipsOpen: boolean; logAll: boolean; archive: Record<string, TurnSnap>; prefs: Prefs; settingsOpen: boolean; bottomOpen: boolean; peers: Peers; tabs: Tab[]; peerFrom: number; tabFrom: number; icons: Record<string, AppIcon>; freshStage: string; pulls: { wait: Record<string, string>; back: Record<string, string> }; nums: Record<string, number> }
+    'goyangi': { tree: Tree; tick: number; fold: Fold; logEnd: number; mapEnd: number; flowPage: number; questPage: number; focus: string; kidsFolded: string; viewTurn: string; replayFrom: number; mapTall: boolean; mapBasis: string; tipsOpen: boolean; logAll: boolean; archive: Record<string, TurnSnap>; prefs: Prefs; settingsOpen: boolean; bottomOpen: boolean; peers: Peers; tabs: Tab[]; peerFrom: number; tabFrom: number; icons: Record<string, AppIcon>; freshStage: string; pulls: { wait: Record<string, string>; back: Record<string, string> }; nums: Record<string, number>; numsOf: string }
   }
 }

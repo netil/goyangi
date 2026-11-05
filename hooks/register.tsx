@@ -59,13 +59,14 @@ const tabs = atom({ plugin: 'goyangi', key: 'tabs' } as const, [] as Tab[])
 // Only a pull whose note comes back here is waited on: a send expects no answer, and a pull passed on to another session (`to`) answers there.
 const pulls = atom({ plugin: 'goyangi', key: 'pulls' } as const, { wait: {} as Record<string, string>, back: {} as Record<string, string> })
 // Sticky numbers (state.ts stick) for tabs and sessions: a number stays while its session or tab is open and is freed when it closes.
-// Every session runs its own copy of this plugin, so the numbers also live in $.store, the one place they are shared.
+// They belong to one conversation: a new session (or /clear) starts again from 1, and the copies running in other sessions never share them.
 const nums = atom({ plugin: 'goyangi', key: 'nums' } as const, {} as Record<string, number>)
+const numsOf = atom({ plugin: 'goyangi', key: 'numsOf' } as const, '')
 const NUMBERS_NOTE = `Numbered targets (Goyangi): the person names other Claude Code sessions, coding agents and browser tabs by the numbers Goyangi shows, with no other context.
 - A browser tab code is a letter and a number: B1, c2, G1 (case aside; B Brave, C Chrome, E Edge, A Arc, V Vivaldi, M Chromium, G ego lite, S Safari, F Firefox, W Whale). "b1에서 작업해줘", "C3 탭 읽어줘" mean that tab. Call mcp__goyangi__browser_tabs (list first if you don't know what B1 is) and work inside that tab with action run (JavaScript), read or focus. Don't open the address again in another browser tool.
 - A bare number with 세션/session ("2번 세션에 보내줘", "1번에서 가져와") means that Open sessions entry. Call mcp__goyangi__sessions (list first), then send (this session's handoff to session \`to\`) or pull (session \`from\`'s handoff).
 - A bare "3번" with no letter, no 세션/session and no earlier subject: read it as a session number first, and look for a tab only when sessions has no such number (tabs always have a letter). Ask the person only when it still fits more than one target.
-- The numbers belong to the machine, not to this conversation: a number stays with its session or tab while it is open, and is freed when it closes, so a later one may reuse it. Never guess a number's target from memory; list again.`
+- The numbers belong to this conversation: a number stays with its session or tab while it is open, and is freed when it closes, so a later one may reuse it. A new session starts again from 1. Never guess a number's target from memory; list again.`
 // First shown row of the Open sessions and Browser tabs boxes, moved by the wheel and their scrollbars
 // App icons for the Open sessions and Browser tabs rows, keyed by app name ('Claude', 'Brave Browser')
 const icons = atom({ plugin: 'goyangi', key: 'icons' } as const, {} as Record<string, AppIcon>)
@@ -298,12 +299,10 @@ async function hostOf($: EngineInterface, pid: number): Promise<string> {
   hostCache.set(pid, host)
   return host
 }
-// Number from the stored map (the other sessions' view), not this copy's memory, so a number another session handed out is never given to a second key.
-// The write is awaited: the next session to refresh reads it.
 async function stickNums($: EngineInterface, keys: string[], owns?: (key: string) => boolean): Promise<Record<string, number>> {
-  const saved = ((await $.store.get('nums').catch(() => undefined)) as { n?: Record<string, number> } | null | undefined)?.n ?? {}
-  const n = stick(saved, keys, owns)
-  if (n !== saved) await $.store.set('nums', { n }).catch(() => undefined)
+  const sid = await Promise.resolve($.session.id()).catch(() => '')
+  if ((await read($, numsOf)) !== sid) { await update($, numsOf, () => sid); await update($, nums, () => ({})) }
+  const n = stick(await read($, nums), keys, owns)
   await update($, nums, () => n)
   return n
 }
