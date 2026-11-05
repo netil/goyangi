@@ -58,15 +58,14 @@ const tabs = atom({ plugin: 'goyangi', key: 'tabs' } as const, [] as Tab[])
 // Pulls waiting for their handoff (the other session's id → the pull's turn flow branch), and answered ones (branch → the turn the note arrived as, T5).
 // Only a pull whose note comes back here is waited on: a send expects no answer, and a pull passed on to another session (`to`) answers there.
 const pulls = atom({ plugin: 'goyangi', key: 'pulls' } as const, { wait: {} as Record<string, string>, back: {} as Record<string, string> })
-// Sticky numbers (state.ts stick) for tabs and sessions. They describe the machine, not one conversation, so they are also saved to $.store
-// and loaded again when a session starts: /clear must not renumber them. Numbers unused for NUMS_TTL are dropped (tab ids don't outlive a browser restart).
+// Sticky numbers (state.ts stick) for tabs and sessions: a number stays while its session or tab is open and is freed when it closes.
+// Every session runs its own copy of this plugin, so the numbers also live in $.store, the one place they are shared.
 const nums = atom({ plugin: 'goyangi', key: 'nums' } as const, {} as Record<string, number>)
-const NUMS_TTL = 12 * 3600_000
 const NUMBERS_NOTE = `Numbered targets (Goyangi): the person names other Claude Code sessions, coding agents and browser tabs by the numbers Goyangi shows, with no other context.
 - A browser tab code is a letter and a number: B1, c2, G1 (case aside; B Brave, C Chrome, E Edge, A Arc, V Vivaldi, M Chromium, G ego lite, S Safari, F Firefox, W Whale). "b1에서 작업해줘", "C3 탭 읽어줘" mean that tab. Call mcp__goyangi__browser_tabs (list first if you don't know what B1 is) and work inside that tab with action run (JavaScript), read or focus. Don't open the address again in another browser tool.
 - A bare number with 세션/session ("2번 세션에 보내줘", "1번에서 가져와") means that Open sessions entry. Call mcp__goyangi__sessions (list first), then send (this session's handoff to session \`to\`) or pull (session \`from\`'s handoff).
 - A bare "3번" with no letter, no 세션/session and no earlier subject: read it as a session number first, and look for a tab only when sessions has no such number (tabs always have a letter). Ask the person only when it still fits more than one target.
-- The numbers belong to the machine, not to this conversation: they stay after /clear and a new session. Never guess a number's target from memory; list again.`
+- The numbers belong to the machine, not to this conversation: a number stays with its session or tab while it is open, and is freed when it closes, so a later one may reuse it. Never guess a number's target from memory; list again.`
 // First shown row of the Open sessions and Browser tabs boxes, moved by the wheel and their scrollbars
 // App icons for the Open sessions and Browser tabs rows, keyed by app name ('Claude', 'Brave Browser')
 const icons = atom({ plugin: 'goyangi', key: 'icons' } as const, {} as Record<string, AppIcon>)
@@ -299,16 +298,14 @@ async function hostOf($: EngineInterface, pid: number): Promise<string> {
   hostCache.set(pid, host)
   return host
 }
-async function stickNums($: EngineInterface, keys: string[]): Promise<Record<string, number>> {
-  const prev = await read($, nums)
-  await update($, nums, v => stick(v, keys))
-  const n = await read($, nums)
-  if (n !== prev) quiet($.store.set('nums', { at: Date.now(), n }))
+// Number from the stored map (the other sessions' view), not this copy's memory, so a number another session handed out is never given to a second key.
+// The write is awaited: the next session to refresh reads it.
+async function stickNums($: EngineInterface, keys: string[], owns?: (key: string) => boolean): Promise<Record<string, number>> {
+  const saved = ((await $.store.get('nums').catch(() => undefined)) as { n?: Record<string, number> } | null | undefined)?.n ?? {}
+  const n = stick(saved, keys, owns)
+  if (n !== saved) await $.store.set('nums', { n }).catch(() => undefined)
+  await update($, nums, () => n)
   return n
-}
-async function loadNums($: EngineInterface) {
-  const v = await $.store.get('nums').catch(() => undefined) as { at?: number; n?: Record<string, number> } | null | undefined
-  if (v?.n && Date.now() - (v.at ?? 0) < NUMS_TTL) await update($, nums, cur => ({ ...v.n, ...cur }))
 }
 async function refreshPeers($: EngineInterface) {
   const [r, a] = await Promise.all([
@@ -327,7 +324,7 @@ async function refreshPeers($: EngineInterface) {
     return s ? { ...p, status: s } : p
   }))
   const all = [...claudes, ...agents]
-  const n = await stickNums($, all.filter(p => p.sessionId !== self).map(p => `s:${p.sessionId}`))
+  const n = await stickNums($, all.filter(p => p.sessionId !== self).map(p => `s:${p.sessionId}`), k => k.startsWith('s:'))
   peersBusy = all.some(p => p.sessionId !== self && p.status === 'busy')
   const list = all.map(p => (p.sessionId === self ? p : { ...p, num: n[`s:${p.sessionId}`] })).sort((x, y) => (x.num ?? 0) - (y.num ?? 0))
   await update($, peers, v => (v.self === self && JSON.stringify(v.list) === JSON.stringify(list) ? v : { self, list }))
@@ -464,7 +461,9 @@ async function refreshTabs($: EngineInterface): Promise<Tab[]> {
   const found = all.flatMap((b, i) => (runs[i]?.exitCode === 0 ? parseTabs(runs[i]!.stdout, b.letter, b.app, b.safari, b.firefox) : []))
   // A browser that isn't running exits 0 with no output, so a non-zero exit is a real failure (Automation permission denied, hung, no tab scripting): say so
   unreadable = all.flatMap((b, i) => (runs[i]?.exitCode === 0 ? [] : [`${b.name}: ${runs[i]?.stderr.trim().split('\n')[0] || 'no answer within 15 seconds'}`]))
-  const n = await stickNums($, found.map(x => x.key))
+  // A browser that failed to answer keeps its numbers: its tabs are unknown, not closed
+  const failed = new Set(all.filter((_, i) => runs[i]?.exitCode !== 0).map(b => `${b.letter}:`))
+  const n = await stickNums($, found.map(x => x.key), k => !k.startsWith('s:') && !failed.has(k.slice(0, k.indexOf(':') + 1)))
   // Each browser's tabs in number order, so a tab keeps its row as well as its number
   const list = all.flatMap(b => found.filter(x => x.app === b.app).map(x => ({ ...x, id: `${b.letter}${n[x.key]}` })).sort((x, y) => n[x.key]! - n[y.key]!))
   await update($, tabs, v => (JSON.stringify(v) === JSON.stringify(list) ? v : list))
@@ -2652,7 +2651,7 @@ export const register: Register = (on, options) => {
     // Every 5 seconds, find stalled tools and subagents and notify once each.
     let ticks = 0
     let peerTicks = 0
-    quiet(loadNums($).then(() => Promise.all([refreshPeers($), refreshTabs($)])))
+    quiet(Promise.all([refreshPeers($), refreshTabs($)]))
     void $.clock.every(500, async () => {
       if (++peerTicks % 60 === 0) quiet(refreshPeers($))
       busy = isBusy(norm(await read($, tree)))

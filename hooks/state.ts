@@ -1426,20 +1426,28 @@ export function handoffLabel(input: { action?: unknown; to?: unknown; from?: unk
   if (input.action === 'pull') return { hand: 'pull', label: `⇠ ${name(input.from)}${input.to !== undefined ? ` ⇢ ${name(input.to)}` : ''}` }
   return undefined
 }
-// Sticky numbers: a key keeps the number it first got for the rest of the session, and a closed one's number is never handed out again,
-// so "C2" or "session 2" said earlier still means the same tab or session after others open, close or move.
-// Keys are 'group:id'; each group counts on from its own highest number.
-// ponytail: the map only grows (one entry per tab or session ever seen); prune when sessions see thousands
-export function stick(prev: Readonly<Record<string, number>>, keys: readonly string[]): Record<string, number> {
-  // Unchanged when every key already has a number, so the atom isn't rewritten on each refresh
-  if (keys.every(k => prev[k] !== undefined)) return prev as Record<string, number>
-  const next = { ...prev }
+// Sticky numbers: a key keeps the number it got for as long as it stays in `keys` (the sessions or tabs open right now). Once it is gone its number is freed,
+// and a new key takes the lowest free number in its group, so the numbers stay small and the map holds only what is open.
+// Keys are 'group:id'. `owns` says which stored keys this call covers; the rest (another group, a browser that failed to answer) are left as they are.
+export function stick(prev: Readonly<Record<string, number>>, keys: readonly string[], owns: (key: string) => boolean = () => true): Record<string, number> {
+  const open = new Set(keys)
+  const group = (k: string) => k.slice(0, k.indexOf(':') + 1)
+  const used = new Map<string, Set<number>>()
+  const take = (k: string, n: number) => { const g = group(k); (used.get(g) ?? used.set(g, new Set()).get(g)!).add(n) }
+  const next: Record<string, number> = {}
+  for (const [k, n] of Object.entries(prev)) {
+    if (owns(k) && !open.has(k)) continue
+    if (used.get(group(k))?.has(n)) continue
+    next[k] = n; take(k, n)
+  }
   for (const k of keys) {
     if (next[k] !== undefined) continue
-    const g = k.slice(0, k.indexOf(':') + 1)
-    next[k] = 1 + Math.max(0, ...Object.entries(next).filter(([x]) => x.startsWith(g)).map(([, n]) => n))
+    let n = 1
+    while (used.get(group(k))?.has(n)) n++
+    next[k] = n; take(k, n)
   }
-  return next
+  const same = Object.keys(next).length === Object.keys(prev).length && Object.entries(next).every(([k, n]) => prev[k] === n)
+  return same ? (prev as Record<string, number>) : next
 }
 // Finds tabs by a number (B3, case aside) or by words: every word must appear in the title or URL, case aside.
 // One match is the tab; several are candidates for the model to choose from or ask about.

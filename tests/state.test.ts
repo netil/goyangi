@@ -345,11 +345,19 @@ test('sessions: parsePeers reads `claude agents --json` and ignores anything els
     { id: 'B1', key: 'B:501', title: 'Inbox', url: 'https://mail.example.com/', active: false, app: 'Brave Browser', win: 1, index: 1 },
     { id: 'B2', key: 'B:77', title: 'PR #12 Fix parser', url: 'https://github.com/o/r/pull/12?a=1\tb', active: true, app: 'Brave Browser', win: 2, index: 3 },
   ])
-  // Sticky numbers: a key keeps its number, a new key counts on in its own group, and a gone key's number is not reused
+  // Sticky numbers: a key keeps its number while it is open, a closed key's number is freed, and a new key takes the lowest free number in its group
   const n1 = stick({}, ['C:9', 'C:4', 'B:1', 's:x'])
   expect(n1).toEqual({ 'C:9': 1, 'C:4': 2, 'B:1': 1, 's:x': 1 })
-  expect(stick(n1, ['C:5', 'C:4'])).toEqual({ ...n1, 'C:5': 3 })
-  expect(stick(n1, ['C:4'])).toBe(n1)
+  expect(stick(n1, ['C:9', 'C:4', 'C:5'], k => k.startsWith('C:'))).toEqual({ ...n1, 'C:5': 3 })
+  expect(stick(n1, ['C:9', 'C:4'], k => k.startsWith('C:'))).toBe(n1)
+  const n2 = stick(n1, ['C:4', 'C:7'], k => k.startsWith('C:'))
+  expect(n2).toEqual({ 'C:4': 2, 'C:7': 1, 'B:1': 1, 's:x': 1 })
+  expect(stick({ 's:a': 1, 's:b': 2, 's:c': 3 }, ['s:a', 's:c'], k => k.startsWith('s:'))).toEqual({ 's:a': 1, 's:c': 3 })
+  expect(stick({ 's:a': 1, 's:c': 3 }, ['s:a', 's:c', 's:d'], k => k.startsWith('s:'))['s:d']).toBe(2)
+  // A browser that did not answer is outside `owns`, so its tabs keep their numbers
+  expect(stick({ 'B:1': 4 }, [], k => k.startsWith('C:'))).toEqual({ 'B:1': 4 })
+  // Two keys holding one number (two copies numbering at once): the first keeps it, the other is numbered again
+  expect(stick({ 's:a': 1, 's:b': 1 }, ['s:a', 's:b'], k => k.startsWith('s:'))).toEqual({ 's:a': 1, 's:b': 2 })
   // Handoff lines in the turn flow name the other session by its number
   const ps = [{ name: 'docs-1', num: 1 }, { name: 'api', num: 2 }]
   expect(handoffLabel({ action: 'send', to: 2 }, ps)).toEqual({ hand: 'send', label: '⇢ api #2' })

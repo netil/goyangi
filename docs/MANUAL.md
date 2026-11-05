@@ -103,7 +103,7 @@ Other Claude Code sessions on this machine (and coding agents such as Codex, Ope
 - `↑ send` passes this session's handoff to that session (name, folder, current request, edited files, last messages, and the `claude --resume` command)
 - `↓ pull` asks that session for its handoff
 - `↗ focus` brings its window forward
-- A number stays with its session until this one ends or `/clear`, so "send this to session 2" always means the same session. The model has a `sessions` tool (`mcp__goyangi__sessions`) that uses the same numbers
+- A session keeps its number while it is open, whatever opens or closes around it. When it closes its number is freed and a new session takes the lowest free one. The model has a `sessions` tool (`mcp__goyangi__sessions`) that uses the same numbers
 - In the turn flow a handoff is a purple branch: `⇢ api #2` (send), `⇠ docs-1 #1` (pull)
 - If a send is refused by auto mode's review, add `SendMessage` to `permissions.allow` in settings.json
 - Coding agents take a note as a file and a typed prompt line. Their pull reads the last 200 lines of the agent's terminal
@@ -112,7 +112,7 @@ Other Claude Code sessions on this machine (and coding agents such as Codex, Ope
 
 Open tabs of every running browser: Chrome, Brave, Edge, Arc, Vivaldi, Chromium, ego lite, Safari, Firefox, Whale, and others that script their tabs. Each row has the browser icon, a tab number (`C2`, `B3`), `●` for the window's active tab, title, and site. `↗ focus` brings the tab forward.
 
-- A tab keeps its number until this session ends or `/clear`
+- A tab keeps its number while it is open. When it closes its number is freed and a new tab takes the lowest free one
 - Say "깃헙 PR 탭 내용 알려줘" or "B3 작업해줘". The model uses `browser_tabs` (`mcp__goyangi__browser_tabs`): `list`, `read` (title and URL), `run` (JavaScript in that tab, with your sign-ins), `focus`
 - `run` needs View > Developer > Allow JavaScript from Apple Events in that browser. Firefox tabs can be listed and read but not run
 - Tabs are read when the session starts and with the refresh icon, never on a timer. A browser that isn't running is never started

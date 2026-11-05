@@ -366,11 +366,11 @@ test('sessions box: lists the other open sessions; send passes this session\'s h
   expect(sent.at(-1)!.to).toBe('other')
   expect(sent.at(-1)!.text.startsWith('[goyangi:pull] third')).toBe(true)
   expect(String((await $.tool.call({ tool: 'mcp__goyangi__sessions', action: 'send', to: 5 } as never)).result)).toContain('1. docs-1')
-  // Numbers stay: docs-1 closes and an older-started session appears, yet api is still 2, the newcomer is 3, and 1 is not reused
+  // Numbers stay while open and are freed on close: docs-1 closes and a newcomer appears, yet api is still 2, and the newcomer takes the freed 1
   agents = [agents[0]!, agents[1]!, { sessionId: 'late', name: 'web', cwd: '/Users/u/dev/web', status: 'idle', kind: 'interactive', startedAt: 5 }]
-  expect(String((await $.tool.call({ tool: 'mcp__goyangi__sessions', action: 'list' } as never)).result).split('\n').map(l => l.split(' ').slice(0, 2).join(' '))).toEqual(['2. api', '3. web'])
+  expect(String((await $.tool.call({ tool: 'mcp__goyangi__sessions', action: 'list' } as never)).result).split('\n').map(l => l.split(' ').slice(0, 2).join(' '))).toEqual(['1. web', '2. api'])
   expect(String((await $.tool.call({ tool: 'mcp__goyangi__sessions', action: 'send', to: 2 } as never)).result)).toBe("Sent this session's handoff to api")
-  expect(String((await $.tool.call({ tool: 'mcp__goyangi__sessions', action: 'send', to: 1 } as never)).result)).toMatch(/^No session 1/)
+  expect(String((await $.tool.call({ tool: 'mcp__goyangi__sessions', action: 'send', to: 3 } as never)).result)).toMatch(/^No session 3/)
   agents = [agents[0]!, agents[1]!, { sessionId: 'other', name: 'docs-1', cwd: '/Users/u/dev/docs', status: 'idle', kind: 'interactive', startedAt: 20 }]
   await ui.unmount()
   // A pull request arriving from a peer: answered with this session's note, and the prompt never enters
@@ -459,12 +459,12 @@ test('browser tabs box: tabs numbered by browser letter (B1, B2), each keeping i
   expect(runs.at(-1)!.join(' ')).toContain('tell application "Brave Browser" to execute tab 1 of window 2 javascript (item 1 of argv)')
   expect(String((await $.tool.call({ tool: 'mcp__goyangi__browser_tabs', action: 'run', tab: 'mail' } as never)).result)).toMatch(/^run needs js/)
   // Numbers stay with their tabs: Docs home closes, a new tab opens before PR #12, Mail moves to window 1.
-  // B2 is still PR #12 (now at window 1 tab 2), B3 still Mail, the new tab is B4, and B1 is gone, not reused
+  // B2 is still PR #12 (now at window 1 tab 2), B3 still Mail, and the new tab takes the freed B1
   brave = '1\t1\tfalse\t20\tNew\thttps://new.example.com/\n1\t2\ttrue\t12\tPR #12\thttps://github.com/o/r/pull/12\n1\t3\tfalse\t13\tMail\thttps://mail.example.com/\n'
-  expect(String((await $.tool.call({ tool: 'mcp__goyangi__browser_tabs', action: 'list' } as never)).result).split('\n').map(l => l.split(' ')[0])).toEqual(['B2', 'B3', 'B4'])
+  expect(String((await $.tool.call({ tool: 'mcp__goyangi__browser_tabs', action: 'list' } as never)).result).split('\n').map(l => l.split(' ')[0])).toEqual(['B1', 'B2', 'B3'])
   await $.tool.call({ tool: 'mcp__goyangi__browser_tabs', action: 'run', tab: 'B3', js: '1' } as never)
   expect(runs.at(-1)!.join(' ')).toContain('execute tab 3 of window 1 javascript')
-  expect(String((await $.tool.call({ tool: 'mcp__goyangi__browser_tabs', action: 'read', tab: 'B1' } as never)).result)).toMatch(/^No tab matches "B1"/)
+  expect(String((await $.tool.call({ tool: 'mcp__goyangi__browser_tabs', action: 'read', tab: 'B4' } as never)).result)).toMatch(/^No tab matches "B4"/)
   await ui.unmount()
 })
 
