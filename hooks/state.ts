@@ -734,10 +734,13 @@ export function deskOf(l: Pick<Loop, 'status' | 'activity'>): { pose: Pose; prop
 // If empty is one of the two, all other colored pixels take the foreground; otherwise empty pixels take the background.
 // OCTANT[m]: the character drawing pixel bits m (1 2 / 3 4 / 5 6 / 7 8 as 1, 2, 4 ... 128). The 26 drawable with existing block characters use those.
 const OCTANT = Array.from(" 𜺨𜺫🮂𜴀▘𜴁𜴂𜴃𜴄▝𜴅𜴆𜴇𜴈▀𜴉𜴊𜴋𜴌🯦𜴍𜴎𜴏𜴐𜴑𜴒𜴓𜴔𜴕𜴖𜴗𜴘𜴙𜴚𜴛𜴜𜴝𜴞𜴟🯧𜴠𜴡𜴢𜴣𜴤𜴥𜴦𜴧𜴨𜴩𜴪𜴫𜴬𜴭𜴮𜴯𜴰𜴱𜴲𜴳𜴴𜴵🮅𜺣𜴶𜴷𜴸𜴹𜴺𜴻𜴼𜴽𜴾𜴿𜵀𜵁𜵂𜵃𜵄▖𜵅𜵆𜵇𜵈▌𜵉𜵊𜵋𜵌▞𜵍𜵎𜵏𜵐▛𜵑𜵒𜵓𜵔𜵕𜵖𜵗𜵘𜵙𜵚𜵛𜵜𜵝𜵞𜵟𜵠𜵡𜵢𜵣𜵤𜵥𜵦𜵧𜵨𜵩𜵪𜵫𜵬𜵭𜵮𜵯𜵰𜺠𜵱𜵲𜵳𜵴𜵵𜵶𜵷𜵸𜵹𜵺𜵻𜵼𜵽𜵾𜵿𜶀𜶁𜶂𜶃𜶄𜶅𜶆𜶇𜶈𜶉𜶊𜶋𜶌𜶍𜶎𜶏▗𜶐𜶑𜶒𜶓▚𜶔𜶕𜶖𜶗▐𜶘𜶙𜶚𜶛▜𜶜𜶝𜶞𜶟𜶠𜶡𜶢𜶣𜶤𜶥𜶦𜶧𜶨𜶩𜶪𜶫▂𜶬𜶭𜶮𜶯𜶰𜶱𜶲𜶳𜶴𜶵𜶶𜶷𜶸𜶹𜶺𜶻𜶼𜶽𜶾𜶿𜷀𜷁𜷂𜷃𜷄𜷅𜷆𜷇𜷈𜷉𜷊𜷋𜷌𜷍𜷎𜷏𜷐𜷑𜷒𜷓𜷔𜷕𜷖𜷗𜷘𜷙𜷚▄𜷛𜷜𜷝𜷞▙𜷟𜷠𜷡𜷢▟𜷣▆𜷤𜷥█")
+// A terminal's own variables (KITTY_WINDOW_ID, GHOSTTY_RESOURCES_DIR, WEZTERM_EXECUTABLE) are inherited by every program started from it: VS Code opened with
+// `code .` from a kitty shell keeps them. They count only when no other terminal set TERM_PROGRAM, or a multiplexer did (its glyphs reach the outer terminal).
+const ownVars = (env: { TERM_PROGRAM?: string }) => !env.TERM_PROGRAM || /^(tmux|herdr|ghostty|wezterm|kitty)$/i.test(env.TERM_PROGRAM)
 // Terminals whose fonts draw octant characters (Unicode 16): Ghostty, kitty, WezTerm. The variables other than TERM pass through tmux.
 // Anywhere else (Obsidian's terminal, iTerm2, Terminal.app, VS Code) the octants come out as missing-glyph boxes or too wide, which breaks the layout.
 export function octantTerminal(env: { TERM?: string; TERM_PROGRAM?: string; KITTY_WINDOW_ID?: string; GHOSTTY_RESOURCES_DIR?: string; WEZTERM_EXECUTABLE?: string }): boolean {
-  return /kitty|ghostty/i.test(env.TERM ?? '') || /ghostty|wezterm/i.test(env.TERM_PROGRAM ?? '') || !!(env.KITTY_WINDOW_ID || env.GHOSTTY_RESOURCES_DIR || env.WEZTERM_EXECUTABLE)
+  return /kitty|ghostty/i.test(env.TERM ?? '') || /ghostty|wezterm/i.test(env.TERM_PROGRAM ?? '') || (ownVars(env) && !!(env.KITTY_WINDOW_ID || env.GHOSTTY_RESOURCES_DIR || env.WEZTERM_EXECUTABLE))
 }
 // QUADRANT[m]: the block character drawing quadrant bits m (1 2 / 4 8 as top left, top right, bottom left, bottom right). Block Elements, drawn by every monospace font.
 const QUADRANT = Array.from(' ▘▝▀▖▌▞▛▗▚▐▜▄▙▟█')
@@ -894,9 +897,10 @@ export function iconKind(pref: 'auto' | IconKind, env: { TERM?: string; TERM_PRO
   const locale = env.LC_ALL || env.LC_CTYPE || env.LANG
   return !locale || /utf-?8/i.test(locale) ? 'unicode' : 'ascii'
 }
-export function pixelTerminal(env: { TERM?: string; TERM_PROGRAM?: string; KITTY_WINDOW_ID?: string; TMUX?: string }): boolean {
-  if (env.TMUX) return false
-  return /kitty|ghostty/i.test(env.TERM ?? '') || /ghostty/i.test(env.TERM_PROGRAM ?? '') || !!env.KITTY_WINDOW_ID
+// Multiplexers (tmux, zellij, screen, herdr) don't pass the image protocol through, so a kitty window running one draws nothing where the image goes.
+export function pixelTerminal(env: { TERM?: string; TERM_PROGRAM?: string; KITTY_WINDOW_ID?: string; TMUX?: string; ZELLIJ?: string; STY?: string }): boolean {
+  if (env.TMUX || env.ZELLIJ || env.STY || /^(tmux|herdr)$/i.test(env.TERM_PROGRAM ?? '')) return false
+  return /kitty|ghostty/i.test(env.TERM ?? '') || /ghostty/i.test(env.TERM_PROGRAM ?? '') || (ownVars(env) && !!env.KITTY_WINDOW_ID)
 }
 
 // Place several pixel art layers on one w × h pixel canvas. Parts outside are clipped.

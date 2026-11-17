@@ -164,8 +164,8 @@ let trueColor = true
 async function decidePixelTerm($: EngineInterface) {
   trueColor = await $.env.get('COLORTERM').then(v => /truecolor|24bit/i.test(v ?? '')).catch(() => true)
   // If environment variables can't be read (permissions, tests), use octant character art
-  const env = await Promise.all([$.env.get('TERM'), $.env.get('TERM_PROGRAM'), $.env.get('KITTY_WINDOW_ID'), $.env.get('TMUX'), $.env.get('GHOSTTY_RESOURCES_DIR'), $.env.get('WEZTERM_EXECUTABLE')])
-    .then(([TERM, TERM_PROGRAM, KITTY_WINDOW_ID, TMUX, GHOSTTY_RESOURCES_DIR, WEZTERM_EXECUTABLE]) => ({ TERM, TERM_PROGRAM, KITTY_WINDOW_ID, TMUX, GHOSTTY_RESOURCES_DIR, WEZTERM_EXECUTABLE }))
+  const env = await Promise.all([$.env.get('TERM'), $.env.get('TERM_PROGRAM'), $.env.get('KITTY_WINDOW_ID'), $.env.get('TMUX'), $.env.get('GHOSTTY_RESOURCES_DIR'), $.env.get('WEZTERM_EXECUTABLE'), $.env.get('ZELLIJ'), $.env.get('STY')])
+    .then(([TERM, TERM_PROGRAM, KITTY_WINDOW_ID, TMUX, GHOSTTY_RESOURCES_DIR, WEZTERM_EXECUTABLE, ZELLIJ, STY]) => ({ TERM, TERM_PROGRAM, KITTY_WINDOW_ID, TMUX, GHOSTTY_RESOURCES_DIR, WEZTERM_EXECUTABLE, ZELLIJ, STY }))
     .catch(() => undefined)
   pixelTerm = env ? pixelTerminal(env) : false
   blockArt = env ? !octantTerminal(env) : false

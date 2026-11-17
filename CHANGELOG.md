@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.0.5 (2026-11-17)
+
+### Bug Fixes
+
+- The walk view character no longer comes out blank in VS Code opened from kitty, or in zellij, screen and herdr inside kitty: a kitty variable inherited by those programs no longer makes Goyangi send an image they can't draw
+- The character no longer breaks into missing-glyph boxes in VS Code and other terminals started from Ghostty or WezTerm: their inherited variables no longer count as octant support
+
 ## v1.0.4 (2026-11-05)
 
 ### Bug Fixes

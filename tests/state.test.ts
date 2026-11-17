@@ -172,6 +172,10 @@ test('pixelTerminal: only kitty and Ghostty draw pixels, and inside tmux charact
   expect(pixelTerminal({ TERM: 'xterm-kitty', TMUX: '/tmp/tmux' })).toBe(false)
   expect(pixelTerminal({ TERM: 'xterm-256color', TERM_PROGRAM: 'iTerm.app' })).toBe(false)
   expect(pixelTerminal({})).toBe(false)
+  // kitty's KITTY_WINDOW_ID is inherited by VS Code opened from it and by a multiplexer inside it, where the image comes out blank
+  expect(pixelTerminal({ TERM: 'xterm-256color', TERM_PROGRAM: 'vscode', KITTY_WINDOW_ID: '1' })).toBe(false)
+  expect(pixelTerminal({ TERM: 'xterm-256color', KITTY_WINDOW_ID: '1', ZELLIJ: '0' })).toBe(false)
+  expect(pixelTerminal({ TERM: 'xterm-256color', TERM_PROGRAM: 'herdr', KITTY_WINDOW_ID: '1' })).toBe(false)
 })
 
 test('flagSvg: pole and numbered cloth, with an end triangle for two characters or fewer', async () => {
@@ -408,6 +412,9 @@ test('dotRows draws quadrant blocks for terminals without octant glyphs, and oct
   expect(octantTerminal({ TERM: 'xterm-ghostty' })).toBe(true)
   expect(octantTerminal({ TERM: 'tmux-256color', GHOSTTY_RESOURCES_DIR: '/x' })).toBe(true)
   expect(octantTerminal({ TERM_PROGRAM: 'WezTerm' })).toBe(true)
+  // another terminal started from Ghostty keeps GHOSTTY_RESOURCES_DIR; a multiplexer inside Ghostty (herdr) still reaches Ghostty's glyphs
+  expect(octantTerminal({ TERM: 'xterm-256color', TERM_PROGRAM: 'vscode', GHOSTTY_RESOURCES_DIR: '/x' })).toBe(false)
+  expect(octantTerminal({ TERM: 'xterm-256color', TERM_PROGRAM: 'herdr', GHOSTTY_RESOURCES_DIR: '/x' })).toBe(true)
 })
 
 test('faceKeep: each eye and the nose are one quadrant, the nose below the eyes, and a crossed eye keeps the stroke in the working pose\'s row', async () => {
