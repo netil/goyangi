@@ -1,11 +1,11 @@
 import { atom, read, update } from 'claude-code'
 import type { BoxProps, ButtonProps, ElementConstructor, EngineInterface, Register, RenderInput, TextProps } from 'claude-code'
-import type { FlowItem, Fold, LogKind, Loop, AppIcon, Peer, Peers, Prefs, Tab, SessionRecord, Tree, TurnSnap } from '../types'
+import type { FlowItem, Fold, LogKind, Loop, AppIcon, Peer, Peers, Prefs, ForkRec, ForkAsk, ForkView, Tab, SessionRecord, Tree, TurnSnap } from '../types'
 import {
   addLog, addDiff, lineDelta, addServer, arrowFrame, bar, branchLines, bump, displayWidth, ellipsis, joinLines, usd, logWindow, countTool, describeAgent, emptyTree, ended, fit, flowColumns, flowEnd, flowStart, fmtTok, isBusy, runs, toolClass, turnBegin, turnMark,
   patchLoop, secs, summarize, toolEnd, toolStart, topTools, visibleAgents, who,
   toolErr, noteFail, addToolTime, slowTools, ctxLevel, focusFlow, stepOpen, spawnOrigin, returnTarget, headState,
-  shouldCheckUpdate, updatedVersion, freshDue, FRESH_FULL, deskOf, CHARACTERS, characterOf, look as LOOK, dotRows, dotSvg, dotRgba, pixelTerminal, octantTerminal, iconKind, REFRESH_ICON, dotScene, flagShapes, flagSvg, parsePeers, parseAgents, appOf, hostTag, parseTabs, findTabs, stick, treeRows, handoffLabel, handoffSid, tabsScript, firefoxCmd, firefoxFocus, BROWSERS, pickBrowsers, isAgent, cmuxTarget, screenState, handoffNote, pullRequest, pullFrom, handoffFrom, sprite, miniSprite, petMood, petPixels, overlay, faceKeep, replayAt, costMark, prop, stations,
+  shouldCheckUpdate, updatedVersion, freshDue, FRESH_FULL, forkText, bgId, forkBrief, forkDone, askLine, deskOf, CHARACTERS, characterOf, look as LOOK, dotRows, dotSvg, dotRgba, pixelTerminal, octantTerminal, iconKind, REFRESH_ICON, dotScene, flagShapes, flagSvg, parsePeers, parseAgents, appOf, hostTag, parseTabs, findTabs, stick, treeRows, handoffLabel, handoffSid, tabsScript, firefoxCmd, firefoxFocus, BROWSERS, pickBrowsers, isAgent, cmuxTarget, screenState, handoffNote, pullRequest, pullFrom, handoffFrom, sprite, miniSprite, petMood, petPixels, overlay, faceKeep, replayAt, costMark, prop, stations,
   WINDOW_MS, limitEta, isStalled, cacheDropped, ctxParts, upsertRecord, historySummary, pickKids,
   miniTrack, firstLine, toolResult, addFile, timeStrip, overlaps, archiveTurn, mapTokens, weightBar, timeShares, shareWidths, advise, isKeyLog, brailleSpark, lineGauge, rowCard, wrapLines, resumed, scopeKey,
 } from './state'
@@ -74,6 +74,8 @@ const NUMBERS_NOTE = `Numbered targets (Goyangi): the person names other Claude 
 const icons = atom({ plugin: 'goyangi', key: 'icons' } as const, {} as Record<string, AppIcon>)
 // Fresh session: '' idle, 'writing' while the model writes the handoff note, 'clearing' until /clear runs
 const freshStage = atom({ plugin: 'goyangi', key: 'freshStage' } as const, '')
+// This session's forks as the top box shows them (pollForks)
+const forks = atom({ plugin: 'goyangi', key: 'forks' } as const, [] as ForkView[])
 const peerFrom = atom({ plugin: 'goyangi', key: 'peerFrom' } as const, 0)
 const tabFrom = atom({ plugin: 'goyangi', key: 'tabFrom' } as const, 0)
 const fold = atom({ plugin: 'goyangi', key: 'fold' } as const, { all: false, side: false, map: false, flow: false, agents: false, log: false })
@@ -105,6 +107,9 @@ const SETTING_W = 48 // One settings item: the name (22), a gap, and the widest 
 // under positioned layers there (sticky header, settings overlay), since desktop tints are translucent. inverseText is the theme's background-side color.
 const DESK_HEAD_H = 2
 const DESK_BASE = 'inverseText'
+// Views drawn in the turn flow's place, in the order v and the settings View row cycle through them
+const VIEW_NEXT = { default: 'avatar', avatar: 'compact', compact: 'default' } as const
+const VIEW_NAME = { default: 'Turn flow', avatar: 'Walk', compact: 'Compact' } as const
 const CARD_MAX = 300 // Max characters carried in a hidden card
 const SAID_MAX = 2000 // Length of the response head collected to extract the intent line
 const CONTINUE = '(continued without input)' // Prompt shown for a turn started without input
@@ -266,7 +271,7 @@ function checkAdvice($: Parameters<typeof update>[0] & { ui: { toast: (text: str
 }
 
 // Settings: defaults come from the plugin settings (userConfig), overlaid with values changed in the settings screen (prefs). Changes apply to cur immediately.
-let base: Required<Prefs> = { autoOpen: true, ctxAlertPercent: 80, turnCostAlertUsd: 2, stallSeconds: 120, position: 'right', autoUpdate: true, view: 'default', character: 'cat', sessionRows: 4, tabRows: 4, freshMode: 'ask', freshAtK: 200, icon: 'auto' }
+let base: Required<Prefs> = { autoOpen: true, ctxAlertPercent: 80, turnCostAlertUsd: 2, stallSeconds: 120, position: 'right', autoUpdate: true, view: 'default', character: 'cat', sessionRows: 4, tabRows: 4, freshMode: 'ask', freshAtK: 200, fork: false, icon: 'auto' }
 let cur: Required<Prefs> = { ...base }
 const applyPrefs = (p: Prefs) => { cur = { ...base, ...p } }
 // Overlay only the changed items (patch) on the stored values. With several sessions open, each session's values go stale,
@@ -381,6 +386,134 @@ async function startFresh($: EngineInterface, wait = false) {
 async function clearToFresh($: EngineInterface) {
   await update($, freshStage, () => 'clearing')
   await $.clock.after(300, () => quiet($.command.run({ command: 'clear' }).catch(() => update($, freshStage, () => ''))))
+}
+
+// Forks: a prompt that starts with ; (setting Fork with ';') runs in a background session (claude --bg) while this one goes on: in its own git worktree (-w)
+// where the folder is a repository, else in this same folder. Records live in $.store, which sessions share: fork:<id> (this session writes it),
+// forkAsk:<id> and forkDone:<id> (the fork's Goyangi writes them), forkAnswer:<id> (this session's answer to the ask). id is claude --bg's short id,
+// the first 8 characters of the fork's session id, so the fork finds its record by its own id. When the fork reports FORK DONE: pass, this session
+// commits the worktree, rebases it onto the branch here and fast-forwards it: turning Fork with ';' on is the person's leave for that commit.
+const FORK_ENV = { CMUX_CLAUDE_HOOKS_DISABLED: '1', GIT_TERMINAL_PROMPT: '0' }
+const gitIn = ($: EngineInterface, cwd: string, ...args: string[]) =>
+  $.process.run(['git', '-C', cwd, ...args], { env: FORK_ENV, timeoutMs: 60_000 }).catch(e => ({ exitCode: 1, stdout: '', stderr: String(e) }))
+const forkIds = async ($: EngineInterface) => {
+  const v = await $.store.get(`forksOf:${await $.session.id()}`).catch(() => undefined)
+  return Array.isArray(v) ? (v as string[]) : []
+}
+async function startFork($: EngineInterface, request: string) {
+  const cwd = await $.session.cwd()
+  const top = await gitIn($, cwd, 'rev-parse', '--show-toplevel')
+  const isGit = top.exitCode === 0
+  const root = isGit ? top.stdout.trim() : cwd
+  const name = `fork-${Date.now().toString(36)}`
+  const r = await $.process.run(['claude', '--bg', ...(isGit ? ['-w', name] : []), forkBrief(request, isGit)], { cwd: root, env: { ...FORK_ENV, GOYANGI_FORK: '1' }, timeoutMs: 60_000 }).catch(e => ({ exitCode: 1, stdout: '', stderr: String(e) }))
+  const id = bgId(`${r.stdout}\n${r.stderr}`)
+  if (!id) return $.ui.toast(`Goyangi · Could not start the fork: ${`${r.stderr}\n${r.stdout}`.trim().split('\n')[0] || 'no answer'}`)
+  const owner = await $.session.id()
+  const rec: ForkRec = { id, name, request, top: root, git: isGit, owner, at: Date.now(), state: 'running' }
+  await $.store.set(`fork:${id}`, rec)
+  await $.store.set(`forksOf:${owner}`, [...(await forkIds($)), id])
+  $.ui.toast(`Goyangi · ⑂ Forked to a background session${isGit ? '' : ' in this folder'} (claude attach ${id})`)
+  await pollForks($)
+}
+// A finished fork in a repository: commit its worktree, then rebase onto the branch here and fast-forward. It waits while its files overlap
+// uncommitted changes here (a fast-forward would refuse them), and stops on a failed rebase, leaving the worktree for the person.
+async function mergeFork($: EngineInterface, r: ForkRec): Promise<ForkRec> {
+  const wt = `${r.top}/.claude/worktrees/${r.name}`
+  await gitIn($, wt, 'add', '-A')
+  if ((await gitIn($, wt, 'diff', '--cached', '--quiet')).exitCode !== 0) {
+    const c = await gitIn($, wt, 'commit', '-q', '-m', r.request.split('\n')[0]!.slice(0, 72))
+    if (c.exitCode !== 0) return { ...r, state: 'conflict', note: c.stderr.trim().split('\n')[0] }
+  }
+  const here = (await gitIn($, r.top, 'rev-parse', '--abbrev-ref', 'HEAD')).stdout.trim()
+  if ((await gitIn($, wt, 'rev-list', '--count', `${here}..HEAD`)).stdout.trim() === '0') return { ...r, state: 'done', note: 'no changes' }
+  const theirs = (await gitIn($, wt, 'diff', '--name-only', `${here}...HEAD`)).stdout.split('\n').filter(Boolean)
+  const mine = new Set((await gitIn($, r.top, 'status', '--porcelain', '--untracked-files=no')).stdout.split('\n').map(l => l.slice(3)).filter(Boolean))
+  const overlap = theirs.filter(f => mine.has(f))
+  if (overlap.length) return { ...r, state: 'wait', note: overlap.slice(0, 3).join(', ') }
+  if ((await gitIn($, wt, 'rebase', '-q', here)).exitCode !== 0) {
+    await gitIn($, wt, 'rebase', '--abort')
+    return { ...r, state: 'conflict', note: `its changes conflict with ${here}` }
+  }
+  const ff = await gitIn($, r.top, 'merge', '-q', '--ff-only', `worktree-${r.name}`)
+  if (ff.exitCode !== 0) return { ...r, state: 'conflict', note: ff.stderr.trim().split('\n')[0] }
+  return { ...r, state: 'merged', note: (await gitIn($, r.top, 'rev-parse', '--short', 'HEAD')).stdout.trim() }
+}
+// Remove the fork's session (and its worktree and branch, claude rm), and its records. discard drops what its worktree still holds.
+async function closeFork($: EngineInterface, r: ForkRec, discard = false) {
+  if (discard && r.git) {
+    const wt = `${r.top}/.claude/worktrees/${r.name}`
+    await gitIn($, wt, 'reset', '-q', '--hard')
+    await gitIn($, wt, 'clean', '-fdq')
+  }
+  const rm = (...extra: string[]) => $.process.run(['claude', 'rm', r.id, ...extra], { cwd: r.top, env: FORK_ENV, timeoutMs: 60_000 }).catch(() => undefined)
+  const out = await rm()
+  // Commits only on its branch are refused unless named: after a merge (or a discard) they are on the branch here, or meant to go
+  const unpushed = /--discard-unpushed\s+(\S+)/.exec(`${out?.stdout ?? ''}${out?.stderr ?? ''}`)?.[1]
+  if (unpushed) await rm('--discard-unpushed', unpushed)
+  for (const k of ['fork', 'forkAsk', 'forkAnswer', 'forkDone']) await $.store.set(`${k}:${r.id}`, null)
+  await $.store.set(`forksOf:${r.owner}`, (await forkIds($)).filter(x => x !== r.id))
+}
+// Read each fork's records, finish the ones that reported, and show the rest. Runs every 3 seconds while this session has forks.
+let forkPolling = false
+// /clear gives this session a new id: the forks listed under the old one (session.end) move to the new one at the next poll.
+// ponytail: a module variable, so a plugin reload between the /clear and that poll loses the move
+let forkPrevOwner = ''
+// Asks already announced with a toast (id:n), so a closed or minimized panel still shows each one once
+const forkAsked = new Set<string>()
+async function pollForks($: EngineInterface) {
+  if (forkPolling) return
+  forkPolling = true
+  try {
+    const me = await $.session.id()
+    if (forkPrevOwner && forkPrevOwner !== me) {
+      const old = forkPrevOwner
+      forkPrevOwner = ''
+      const moved = await $.store.get(`forksOf:${old}`).catch(() => undefined)
+      if (Array.isArray(moved) && moved.length) {
+        for (const id of moved as string[]) {
+          const r = (await $.store.get(`fork:${id}`).catch(() => undefined)) as ForkRec | null | undefined
+          if (r) await $.store.set(`fork:${id}`, { ...r, owner: me })
+        }
+        await $.store.set(`forksOf:${me}`, [...new Set([...(await forkIds($)), ...(moved as string[])])])
+        await $.store.set(`forksOf:${old}`, null)
+      }
+    }
+    const views: ForkView[] = []
+    for (const id of await forkIds($)) {
+      const rec = (await $.store.get(`fork:${id}`).catch(() => undefined)) as ForkRec | null | undefined
+      if (!rec) continue
+      let r = rec
+      if (r.state === 'running' || r.state === 'wait' || r.state === 'fail') {
+        const done = (await $.store.get(`forkDone:${id}`).catch(() => undefined)) as { ok: boolean; reason: string } | null | undefined
+        if (done && !(r.state === 'fail' && !done.ok)) r = !done.ok ? { ...r, state: 'fail', note: done.reason || 'it reported a failure' } : r.git ? await mergeFork($, r) : { ...r, state: 'done' }
+        if (r !== rec) await $.store.set(`fork:${id}`, r)
+      }
+      if (r.state === 'merged' || r.state === 'done') {
+        $.ui.toast(`Goyangi · ⑂ ${r.state === 'merged' ? `Merged (${r.note})` : r.note === 'no changes' ? 'Done, no changes' : 'Done'}: ${firstLine(r.request, 40)}`)
+        await closeFork($, r)
+        continue
+      }
+      const ask = r.state === 'running' ? ((await $.store.get(`forkAsk:${id}`).catch(() => undefined)) as ForkAsk | null | undefined) : undefined
+      if (ask && !forkAsked.has(`${id}:${ask.n}`)) {
+        forkAsked.add(`${id}:${ask.n}`)
+        $.ui.toast(`Goyangi · ⑂ ${firstLine(r.request, 30)} asks: ${ask.line} (Allow or Deny in the panel)`)
+      }
+      views.push(ask ? { ...r, ask } : r)
+    }
+    await update($, forks, v => (JSON.stringify(v) === JSON.stringify(views) ? v : views))
+  } finally {
+    forkPolling = false
+  }
+}
+async function answerFork($: EngineInterface, f: ForkView, allow: boolean) {
+  if (f.ask) await $.store.set(`forkAnswer:${f.id}`, { n: f.ask.n, allow })
+  await pollForks($)
+}
+// In a fork's own session: its id when this session is one (its record is under the first 8 characters of this session's id), else undefined
+const myFork = async ($: EngineInterface) => {
+  const id = String(await $.session.id()).slice(0, 8)
+  return (await $.store.get(`fork:${id}`).catch(() => undefined)) ? id : undefined
 }
 // A refused send (auto mode's review, a recipient gone) toasts the engine's reason, not a false success. Resolves to that same line for the sessions tool.
 // Another coding agent (a cmux terminal) gets the text as a file and one typed line pointing at it, since a newline typed into its prompt would submit early.
@@ -764,7 +897,8 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
   const fStage = await read($, freshStage)
   const ctxK = Math.round(((usage?.context.percent ?? 0) / 100) * (usage?.context.window ?? 0) / 1000)
   const freshRow = pfTop.freshMode !== 'off' && (!!fStage || freshDue(usage?.context, pfTop.freshAtK))
-  const topBody = (twoCol ? Math.max(4, gaugeN) : 4 + Math.ceil(gaugeN / 2)) + 1 + (freshRow ? 1 : 0)
+  const forkList = await read($, forks)
+  const topBody = (twoCol ? Math.max(4, gaugeN) : 4 + Math.ceil(gaugeN / 2)) + 1 + (freshRow ? 1 : 0) + forkList.length
   const TOP_H = 2 + topBody // border 2 rows + body
   // On desktop a fixed height squeezes overflowing rows on top of each other, and a min height leaves a blank row below since the border is thinner than a row.
   // So no height is set and it fits the content (side by side, the row matches the two boxes' heights).
@@ -1171,6 +1305,23 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
             : <Button key="fresh-go" hover={hov('fresh-go')} plain label={`⟳ ctx ${ctxK}k · Continue in a fresh session`} onPress={() => quiet(startFresh($))} />}
         </Box>
       )}
+      {forkList.map(f => (
+        <Box key={`fork-${f.id}`} gap={1}>
+          <Box flexShrink={1} minWidth={0}>
+            <Text wrap="truncate"><Text color={C.agent}>⑂ </Text>{firstLine(f.request, 40)}<Text dimColor> · </Text>{f.ask
+              ? <Text color={C.tool}>{f.ask.line}</Text>
+              : <Text color={f.state === 'running' ? undefined : C.fail} dimColor={f.state === 'running'}>{{ running: `running ${secs(Date.now() - f.at)}`, wait: `waits: ${f.note} changed here too`, conflict: `stopped: ${f.note}`, fail: `failed: ${f.note}` }[f.state as 'running']}{f.git ? '' : ' · same folder'}</Text>}</Text>
+          </Box>
+          <Box flexShrink={0} gap={1}>
+            {f.ask ? [
+              <Button key={`fork-allow-${f.id}`} hover={hov(`fork-allow-${f.id}`)} variant="primary" label="Allow" onPress={() => quiet(answerFork($, f, true))} />,
+              <Button key={`fork-deny-${f.id}`} hover={hov(`fork-deny-${f.id}`)} plain label="Deny" onPress={() => quiet(answerFork($, f, false))} />,
+            ] : null}
+            <Button key={`fork-attach-${f.id}`} hover={hov(`fork-attach-${f.id}`)} plain dimColor label="⧉ attach" onPress={() => quiet($.ui.copy({ text: `claude attach ${f.id}`, surface: e.surface }).then(() => $.ui.toast(`Goyangi · Copied: claude attach ${f.id}`)))} />
+            {<Button key={`fork-drop-${f.id}`} hover={hov(`fork-drop-${f.id}`)} plain dimColor label="✕ discard" onPress={() => quiet(closeFork($, f, true).then(() => pollForks($)))} />}
+          </Box>
+        </Box>
+      ))}
       {serverRow}
       {statRows.sink}
     </Box>
@@ -1181,7 +1332,7 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
   const eff: Required<Prefs> = { ...base, ...pf }
   const movePanel = () => movePanelOf($, eff)
   // Name cards for the header's right buttons: just the button's name, shown on the row right below the hovered button, aligned to the panel's right edge.
-  const toggleView = () => quiet(savePrefs($, { view: eff.view === 'avatar' ? 'default' : 'avatar' }))
+  const toggleView = () => quiet(savePrefs($, { view: VIEW_NEXT[eff.view] }))
   // Terminal move icon: where pressing it sends the panel (down above the prompt, or back to the right).
   const moveIcon = eff.position === 'bottom' ? ' > ' : ' v '
   const TIPS = [['move', 'Move'], ['settings', 'Config'], ['fold', 'Minimize'], ['close', 'Close']] as const
@@ -1341,9 +1492,8 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
           )}
         </Box>
       ), a.why, 0, undefined, below(j)))
-  const flowView = (
-    <Box flexDirection="column">
-      {reveal('flow-title', (
+  // Turn flow title row: shared by the flow chart and the compact view (each wraps it in its own reveal, so its card goes to that view's sink).
+  const flowTitle = (
       <Box justifyContent="space-between">
         {section('flow', 'f', `TURN FLOW${ft.turn.prompt && flowPromptW >= 8 ? `  "${ellipsis(ft.turn.prompt, flowPromptW)}"` : ''}`, C.main)}
         <Box flexShrink={1} minWidth={0} marginLeft={1} gap={1}>
@@ -1351,7 +1501,10 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
           <Text dimColor wrap="truncate">{flowMeta}</Text>
         </Box>
       </Box>
-      ), ft.turn.prompt, 0, undefined, flowBelow(1))}
+  )
+  const flowView = (
+    <Box flexDirection="column">
+      {reveal('flow-title', flowTitle, ft.turn.prompt, 0, undefined, flowBelow(1))}
       {/* Advice: normally the single most important row; +N expands all. Hovering shows the evidence and what to do. */}
       {!f.flow && tipRows(j => flowBelow(j + 2))}
       {!f.flow && filesLine && reveal('flow-files', (
@@ -2161,18 +2314,21 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
   // A 'View' label on the left (left out under 34 columns), then a two-segment pill toggle: the selected side has a dark green background, the other a pale background with dim text. A dim line on the right doubles as the section edge.
   // The line is drawn longer than the remaining width and clipped. Desktop Text's truncate appends …, so it's held in a non-shrinking box clipped by the outer box.
   // Button takes no color, so the wrapping box is painted (same approach as the header buttons).
-  const avatarOn = eff.view === 'avatar'
+  // Each segment saves its own view. Under 44 columns Turn flow shortens to Flow, and under 28 the ●/○ marks are left out, so the three segments fit.
   const VIEW_ON = tint('#2f6f57', C.main)
   const VIEW_OFF = tint('#2a2f45', C.dim)
+  const viewSegs = [['default', 'view-flow'], ['avatar', 'view-office'], ['compact', 'view-compact']] as const
   const viewBar = (
     <Box key="view-bar">
       {cols >= 34 && <Box flexShrink={0} marginRight={1}><Text dimColor>View</Text></Box>}
-      <Box flexShrink={0} backgroundColor={avatarOn ? VIEW_OFF : VIEW_ON}>
-        <Button key="view-flow" hover={hov('view-flow')} plain dimColor={avatarOn} label={` ${avatarOn ? '○' : '●'} Turn flow `} onPress={avatarOn ? toggleView : () => {}} />
-      </Box>
-      <Box flexShrink={0} backgroundColor={avatarOn ? VIEW_ON : VIEW_OFF}>
-        <Button key="view-office" hover={hov('view-office')} plain dimColor={!avatarOn} label={` ${avatarOn ? '●' : '○'} Walk `} onPress={avatarOn ? () => {} : toggleView} />
-      </Box>
+      {viewSegs.map(([v, key]) => {
+        const on = eff.view === v
+        return (
+          <Box key={`seg-${key}`} flexShrink={0} backgroundColor={on ? VIEW_ON : VIEW_OFF}>
+            <Button key={key} hover={hov(key)} plain dimColor={!on} label={` ${cols >= 28 ? (on ? '● ' : '○ ') : ''}${v === 'default' && cols < 44 ? 'Flow' : VIEW_NAME[v]} `} onPress={on ? () => {} : () => quiet(savePrefs($, { view: v }))} />
+          </Box>
+        )
+      })}
       <Box flexGrow={1} flexShrink={1} marginLeft={1} overflow="hidden">
         {desk ? <Box flexShrink={0}><Text color="#3b4261">{'─'.repeat(treeW)}</Text></Box> : <Text color="#3b4261" wrap="truncate">{'─'.repeat(treeW)}</Text>}
       </Box>
@@ -2210,6 +2366,37 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
       </Box>,
     )
   })
+
+  // Compact view: the turn flow drawn like the minimized view's two rows (the step track, then main's status and the counts) under the same title,
+  // advice rows, and fold key. Replaying a past turn draws that turn's track (ft); the status row stays live. Not built in the other views.
+  // Its cards go in compactCards: drawn as the box's last children on desktop, at the panel end in the terminal.
+  const compactCards: JSX.Element[] = []
+  const compactBelow = (top: number) => ({ sink: compactCards, top: viewOrigin + top })
+  const compactTrack = eff.view === 'compact' ? miniTrack(stations(ft.flow, snap ? { status: 'idle', startedAt: snap.startedAt, lastAt: undefined } : t.main), treeW) : undefined
+  const compactView = compactTrack && (
+    <Box flexDirection="column" width={treeW}>
+      {reveal('compact-title', flowTitle, ft.turn.prompt, 0, undefined, compactBelow(1))}
+      {!f.flow && tipRows(j => compactBelow(j + 2))}
+      {!f.flow && (
+        <Box key="compact-track">
+          <Text wrap="truncate">
+            {compactTrack.toks.length === 0 && <Text dimColor>waiting for the next prompt</Text>}
+            {trackParts(Text, compactTrack, spin!)}
+          </Text>
+        </Box>
+      )}
+      {!f.flow && (
+        <Box key="compact-status" justifyContent="space-between" gap={1}>
+          <Box flexShrink={1} minWidth={0} gap={1}>
+            <Box flexShrink={0}>{stateChip(Text, headState(t))}</Box>
+            {t.main.status === 'tool' && <Text wrap="truncate" color={C.tool}>{t.main.activity}</Text>}
+          </Box>
+          <Box flexShrink={0} gap={1}>{loopCounts(Text, t, live)}</Box>
+        </Box>
+      )}
+      {desk && compactCards}
+    </Box>
+  )
 
   // Not built in the default view (redrawn every 0.5s while busy).
   const officeView = eff.view === 'avatar' && (
@@ -2410,6 +2597,7 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
         <Text dimColor wrap="truncate">{pairLists ? '⬈ focus · ' : ''}● active tab · ○ other tab</Text>
       </Box>
   )
+  const viewBody = eff.view === 'avatar' ? officeView : eff.view === 'compact' ? compactView : treeView
   const panel = (
     <Box flexDirection="column" width={cols}>
       {/* Header: background is the theme text color (text), text is the inverse color (inverseText). On a dark theme that's black text on white.
@@ -2424,8 +2612,8 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
       {topRow}
       {viewBar}
       {e.surface === 'desktop'
-        ? <Box flexDirection="column" borderStyle="round" borderColor={C.main} paddingX={1}>{eff.view === 'avatar' ? officeView : treeView}</Box>
-        : eff.view === 'avatar' ? officeView : treeView}
+        ? <Box flexDirection="column" borderStyle="round" borderColor={C.main} paddingX={1}>{viewBody}</Box>
+        : viewBody}
       {/* Open sessions and Browser tabs: side by side on wide panels, stacked on narrow ones.
           The pair takes over the session map's top margin, so the row between the turn flow and these boxes stays and the map sits right under it. */}
       <Box key="lists" marginTop={desk ? 0 : 1} {...(pairLists ? { gap: 1 } : { flexDirection: 'column', ...(desk ? { gap: 'sm' } : {}) } as const)}>
@@ -2489,7 +2677,8 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
         )))}
         {footRow('foot-panel', 'Panel', [
           <Button key="hint-all" hover={hovKey('hint-all')} plain hotkey="c" label="Minimize" onPress={collapse} />,
-          <Button key="hint-view" hover={hovKey('hint-view')} plain hotkey="v" label={eff.view === 'avatar' ? (footNarrow ? 'Turn flow' : 'Turn flow view') : (footNarrow ? 'Walk' : 'Walk view')} onPress={toggleView} />,
+          // Names the view v switches to next
+          <Button key="hint-view" hover={hovKey('hint-view')} plain hotkey="v" label={`${VIEW_NAME[VIEW_NEXT[eff.view]]}${footNarrow ? '' : ' view'}`} onPress={toggleView} />,
           // Dimming the whole button (dimColor) would also dim the engine-drawn 'x:', so it isn't dimmed.
           <Button key="hint-close" hover={hovKey('hint-close')} plain hotkey="x" label="Close" onPress={close} />,
         ])}
@@ -2508,7 +2697,7 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
       </Box>}
       {(desk || stickTop > 0) && <Box key="head-sticky" position="absolute" top={stickTop} left={0} width={cols} flexDirection="column" {...(desk ? { height: DESK_HEAD_H, backgroundColor: DESK_BASE } : {})}>{header}</Box>}
       {headTips}
-      {eff.view === 'avatar' ? officeCards : overlays}
+      {eff.view === 'avatar' ? officeCards : eff.view === 'compact' ? (desk ? null : compactCards) : overlays}
     </Box>
   )
   // Terminal: when the panel is taller than its window, a whole-panel scrollbar (scrollbar.tsx, the lists' bar) stays at the right edge in the
@@ -2582,6 +2771,9 @@ async function settingsScreen($: EngineInterface, e: RenderInput<'Pane' | 'Above
     row('Auto update', (
         <Button key="set-autoUpdate" hover={hov('set-autoUpdate')} variant={eff.autoUpdate ? 'primary' : undefined} label={eff.autoUpdate ? 'On' : 'Off'} onPress={setPref({ autoUpdate: !eff.autoUpdate })} />
       )),
+    row('View mode', (
+      <Button key="set-view" hover={hov('set-view')} variant={eff.view === 'default' ? undefined : 'primary'} label={VIEW_NAME[eff.view]} onPress={setPref({ view: VIEW_NEXT[eff.view] })} />
+    )),
     row('Character', (
       <Button key="set-character" hover={hov('set-character')} variant="primary" label={ch[0]!.toUpperCase() + ch.slice(1)} onPress={setPref({ character: CHARACTERS[(CHARACTERS.indexOf(ch) + 1) % CHARACTERS.length] })} />
     )),
@@ -2594,6 +2786,9 @@ async function settingsScreen($: EngineInterface, e: RenderInput<'Pane' | 'Above
     row('Panel position', (
         <Button key="set-position" hover={hov('set-position')} variant="primary" label={eff.position === 'bottom' ? 'Bottom (above prompt)' : 'Right'} onPress={movePanel} />
       )),
+    row("Fork with ';'", (
+      <Button key="set-fork" hover={hov('set-fork')} variant={eff.fork ? 'primary' : undefined} label={eff.fork ? 'On' : 'Off'} onPress={setPref({ fork: !eff.fork })} />
+    )),
     row('Fresh session at', stepper('freshAtK', 50, v => `${v}k`)),
     row('Context alert', stepper('ctxAlertPercent', 10, v => `${v}%`)),
     row('Turn cost alert', stepper('turnCostAlertUsd', 1, v => `$${v}`)),
@@ -2639,6 +2834,28 @@ const stateChip = (Text: ElementConstructor<TextProps>, hs: ReturnType<typeof he
   return <Text bold color="inverseText" backgroundColor={bg} wrap="truncate"> {label} </Text>
 }
 
+// Step track shared by the minimized view's row 1 and the compact view: ◂N for the spots dropped from the front, then the tokens joined by ─,
+// the running one with the spinner and its tools' marks. pet is drawn right before the latest token (the minimized view's octant pet).
+const trackParts = (Text: ElementConstructor<TextProps>, track: ReturnType<typeof miniTrack>, spin: string, pet: JSX.Element | null = null) => {
+  const tokColor = (st: string) => (st === 'run' ? C.tool : st === 'fail' ? C.fail : C.main)
+  return [
+    ...(track.hidden > 0 ? [<Text key="mt-hidden" dimColor>◂{track.hidden}</Text>] : []),
+    ...track.toks.map((k, i) => (
+      <Text key={`mt-${i}`}>
+        <Text dimColor>{i || track.hidden ? '─' : ' '}</Text>
+        {i === track.toks.length - 1 && pet}
+        <Text bold={k.state === 'run'} color={k.kind === 'step' || k.state !== 'ok' ? tokColor(k.state) : C.dim}>{k.state === 'run' ? spin : ''}{k.text}</Text>
+        {k.tools && <Text> {[...k.tools].map((c, j) => <Text key={`mtt-${j}`} color={MARK[c]?.c ?? C.dim}>{MARK[c]?.g ?? '■'}</Text>)}</Text>}
+      </Text>
+    )),
+  ]
+}
+// Counts shared by the minimized view's row 2 and the compact view: main's steps and tools, then running / total subagents.
+const loopCounts = (Text: ElementConstructor<TextProps>, t: Tree, live: number) => [
+  <Text key="lc-steps"><Text bold color={M.steps}>step {t.main.steps}</Text><Text dimColor> · </Text><Text bold color={M.tools}>tool {t.main.tools}</Text></Text>,
+  <Text key="lc-agents" bold color={live ? C.agent : C.dim}>⑂ {live}/{t.agents.length}</Text>,
+]
+
 export const register: Register = (on, options) => {
   base = {
     autoOpen: options.autoOpen !== false,
@@ -2653,6 +2870,7 @@ export const register: Register = (on, options) => {
     tabRows: rowsOf(options.tabRows),
     freshMode: 'ask',
     freshAtK: num(options.freshAtK, 200),
+    fork: false,
     icon: 'auto',
   }
   cur = { ...base }
@@ -2690,9 +2908,12 @@ export const register: Register = (on, options) => {
     // Every 5 seconds, find stalled tools and subagents and notify once each.
     let ticks = 0
     let peerTicks = 0
-    quiet(Promise.all([refreshPeers($), refreshTabs($)]))
+    // GOYANGI_FORK marks a fork's session (startFork), which skips what only a person's session needs: reading browser tabs, opening the panel, the update check
+    const isFork = !!(await $.env.get('GOYANGI_FORK').catch(() => undefined))
+    quiet(Promise.all([refreshPeers($), isFork ? undefined : refreshTabs($), pollForks($)]))
     void $.clock.every(500, async () => {
       if (++peerTicks % 60 === 0) quiet(refreshPeers($))
+      if (peerTicks % 6 === 0 && (await read($, forks)).length) quiet(pollForks($))
       busy = isBusy(norm(await read($, tree)))
       // No redraws while idle. But the walk view shows the character thinking, and another session's busy ● blinks, so it advances once a second.
       if (!busy) { if ((cur.view === 'avatar' || peersBusy) && ++ticks % 2 === 0) quiet(update($, tick, n => n + 1)); return }
@@ -2719,6 +2940,7 @@ export const register: Register = (on, options) => {
     const p = saved && typeof saved === 'object' ? (saved as Prefs) : {}
     applyPrefs(p)
     quiet(update($, prefs, () => p))
+    if (isFork) return started
     if (cur.autoOpen) quiet(read($, fold).then(f => (f.all ? undefined : openPane($))))
     quiet(checkUpdate($))
     return started
@@ -2726,6 +2948,7 @@ export const register: Register = (on, options) => {
 
   on('session.end', async ($, e, next) => {
     if (e.reason === 'clear') {
+      forkPrevOwner = String(await Promise.resolve($.session.id()).catch(() => ''))
       sessionEpoch++
       costQueue = Promise.resolve()
       // /clear continues under a new session id and session.start doesn't fire again. Drop the cost baseline and session id and pick them up again from the next usage.
@@ -2741,8 +2964,14 @@ export const register: Register = (on, options) => {
   // /goyangi opens the panel fresh: it lifts minimize and all section folds so every section is expanded.
   // A pull request from another session's Goyangi (state.ts pullRequest) is answered here with this session's handoff, and dropped before it reaches the model
   on('prompt.submit', async ($, e, next) => {
+    // A fork (; first): it runs in a background session and never reaches this one. Checked before the fresh-session hold, which would carry it as plain text
+    const req = e.origin.kind === 'composer' && cur.fork ? forkText(e.text) : undefined
+    if (req) {
+      quiet(startFork($, req))
+      return { drop: 'Goyangi runs this in a background session (fork)' }
+    }
     // Auto fresh session with the note ready: the person's prompt is held back and goes to the new session, which /clear starts now
-    if (e.origin.kind === 'person' && cur.freshMode !== 'off' && (await read($, freshStage)) === 'ready') {
+    if (e.origin.kind === 'composer' && cur.freshMode !== 'off' && (await read($, freshStage)) === 'ready') {
       const rec = await $.store.get('fresh').catch(() => undefined) as { file?: string } | null | undefined
       if (rec?.file) {
         await $.store.set('fresh', { ...rec, then: e.text, at: Date.now() })
@@ -2757,6 +2986,23 @@ export const register: Register = (on, options) => {
     if (!from) return next(e)
     quiet(sendHandoff($, from, 'the session that asked'))
     return { drop: 'Goyangi answered a handoff request' }
+  })
+
+  // In a fork's own session, a permission request goes to the session that forked it (forkAsk), and the answer pressed there (forkAnswer) decides.
+  // ponytail: polls the store every 2 seconds for up to 10 minutes. The wait runs in sleep, which stops this hook's 10-second clock (a $.clock wait wouldn't).
+  on('classic.PermissionRequest', async ($, e, next) => {
+    const id = await myFork($)
+    if (!id) return next(e)
+    const n = Date.now()
+    await $.store.set(`forkAsk:${id}`, { n, line: askLine(e.tool_name, e.tool_input), at: n })
+    let allow: boolean | undefined
+    for (let i = 0; i < 300 && allow === undefined; i++) {
+      const a = (await $.store.get(`forkAnswer:${id}`).catch(() => undefined)) as { n: number; allow: boolean } | null | undefined
+      if (a?.n === n) allow = a.allow
+      else await $.process.run(['sleep', '2'], { timeoutMs: 10_000 }).catch(() => undefined)
+    }
+    await $.store.set(`forkAsk:${id}`, null)
+    return { decision: allow ? { behavior: 'allow' as const } : { behavior: 'deny' as const, message: allow === false ? 'Denied in the session that forked you' : 'No answer within 10 minutes' } }
   })
 
   // A bare number or tab code ("2번 세션", "b1에서 작업해줘") means the numbers the Open sessions and Browser tabs boxes show.
@@ -3005,6 +3251,12 @@ export const register: Register = (on, options) => {
         `${secs(e.durationMs)} · ${t.turn.steps} steps`, !failed)
     }).then(() => (snap ? update($, archive, a => archiveTurn(a, e.turnId, snap!)) : undefined)))
     if (!e.agentId) {
+      // In a fork's own session: its FORK DONE line goes to the session that forked it
+      quiet(myFork($).then(id => {
+        if (!id) return
+        const d = ('answer' in e ? forkDone(e.answer) : undefined) ?? { ok: false, reason: `ended without FORK DONE (${e.reason})` }
+        return $.store.set(`forkDone:${id}`, { ...d, at: Date.now() })
+      }))
       quiet(read($, freshStage).then(async stage => {
         if (stage === 'writing') {
           // The note the model wrote, or Goyangi's own when it didn't
@@ -3017,7 +3269,7 @@ export const register: Register = (on, options) => {
           if (!wrote) await $.fs.write(freshFile, await myHandoff($))
           return update($, freshStage, () => 'ready')
         }
-        if (stage || cur.freshMode !== 'auto') return
+        if (stage || cur.freshMode !== 'auto' || (await myFork($))) return
         if (freshDue((await $.session.usage().catch(() => undefined))?.context, cur.freshAtK)) await $.clock.after(300, () => quiet(startFresh($, true)))
       }))
       refreshCtx($)
@@ -3109,7 +3361,6 @@ export const register: Register = (on, options) => {
     const ad = advise({ flow: t.flow, fails: t.fails, ctxPercent: bandUsage?.context.percent ?? 0, limits: lim })
     const warns = ad.filter(a => a.level === 'warn').length
     const tips = ad.length - warns
-    const agents = `⑂ ${live}/${t.agents.length}`
     // Row 1 has the full width less the border and padding (4) and the settings, expand, and close buttons on its right (12): the prompt takes up to a quarter, the track the rest.
     const inner = cols - 4 - 12
     // The settings screen opens under the two rows (the same screen as the panel's); the band grows to hold it.
@@ -3145,7 +3396,6 @@ export const register: Register = (on, options) => {
       : null
     const petLead = !!(BandSvg || BandImage) || blockArt // drawn at the start of the row, outside the track's Text (the emoji pet too, so the steps run on unbroken)
     const track = miniTrack(stations(t.flow, t.main), Math.max(6, inner - displayWidth(head) - displayWidth(agentText) - (!petOn ? 0 : petLead && !blockArt ? 3 : 5)))
-    const tokColor = (st: string) => (st === 'run' ? C.tool : st === 'fail' ? C.fail : C.main)
     const chip = (key: string, bg: string, el: JSX.Element) => <Box key={key} flexShrink={0} backgroundColor={bg} paddingX={1}>{el}</Box>
     // One row: the parts are placed in it directly (a fragment would be drawn as a column box and push the right part onto its own row).
     const pill = (key: string, ...parts: JSX.Element[]) => <Box key={key} justifyContent="space-between" gap={1}>{parts}</Box>
@@ -3157,17 +3407,9 @@ export const register: Register = (on, options) => {
             {petLead && petEl}
             <Text wrap="truncate">
               <Text bold color={C.main}>T{t.turnTotal}</Text><Text dimColor>{promptText} </Text>
-              {track.hidden > 0 && <Text dimColor>◂{track.hidden}</Text>}
               {track.toks.length === 0 && <Text dimColor>waiting for the next prompt</Text>}
               {track.toks.length === 0 && !petLead && petEl}
-              {track.toks.map((k, i) => (
-                <Text key={`mt-${i}`}>
-                  <Text dimColor>{i || track.hidden ? '─' : ' '}</Text>
-                  {i === track.toks.length - 1 && !petLead && petEl}
-                  <Text bold={k.state === 'run'} color={k.kind === 'step' || k.state !== 'ok' ? tokColor(k.state) : C.dim}>{k.state === 'run' ? spin : ''}{k.text}</Text>
-                  {k.tools && <Text> {[...k.tools].map((c, j) => <Text key={`mtt-${j}`} color={MARK[c]?.c ?? C.dim}>{MARK[c]?.g ?? '■'}</Text>)}</Text>}
-                </Text>
-              ))}
+              {trackParts(Text, track, spin, petLead ? null : petEl)}
               {agentText && <Text color={C.agent}>{agentText}</Text>}
             </Text>
           </Box>,
@@ -3190,8 +3432,7 @@ export const register: Register = (on, options) => {
             {/* Advice counts as tinted chips, like the advice rows in the panel */}
             {warns > 0 && chip('band-warn', tint('#3a2f1a', C.tool), <Text color={C.tool}>⚠{warns}</Text>)}
             {tips > 0 && chip('band-tip', tint('#24324a', '#8ab4f8'), <Text color="#8ab4f8">💡{tips}</Text>)}
-            <Text><Text bold color={M.steps}>step {t.main.steps}</Text><Text dimColor> · </Text><Text bold color={M.tools}>tool {t.main.tools}</Text></Text>
-            <Text bold color={live ? C.agent : C.dim}>{agents}</Text>
+            {loopCounts(Text, t, live)}
           </Box>,
         )}
         </Box>

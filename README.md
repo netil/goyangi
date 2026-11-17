@@ -40,7 +40,9 @@ Work in tab B3
 - **Turn flow**: every model request, tool call, and subagent of the turn in order, with tokens, cost, and a time share bar
 - **Gauges and advice**: context, cache hit rate, and the 5h and 7d usage limits with a forecast. Rule-based advice flags repeated failures, cache drops, and files read again. All computed locally, no tokens spent
 - **Session map and log**: one row per turn to compare, and a replay of any recent turn. The log switches between key events and everything
-- **Walk view**: press `v` and a pixel cat or dog walks through the turn. Its mood shows context, cost, and usage limits at a glance
+- **Walk and compact views**: press `v` and a pixel cat or dog walks through the turn, its mood showing context, cost, and usage limits. Press again for a compact two-row track of the steps
+- **Forks**: start a prompt with `;` and it runs in a background session in its own git worktree while you keep working here. Its permission requests come to this panel, and it merges back when its tests pass
+- **Fresh session**: past a token point (200k by default), the work moves to a new session in the same window with a handoff note instead of compacting
 - **Open sessions**: send this session's handoff to another Claude Code session or a coding agent (Codex, OpenCode, ...), or pull theirs here
 - **Browser tabs**: your open tabs, numbered. Say "B3" or "the GitHub PR tab" and the model works in that tab
 - **Terminal and desktop app**: the same panel in both

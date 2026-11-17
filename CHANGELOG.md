@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.1.0 (2026-11-17)
+
+### Features
+
+- Forks: with **Fork with ';'** on, a prompt that starts with `;` runs in a background session (`claude --bg`), in its own git worktree inside a repository. Its permission requests show in the panel with Allow and Deny, and when it reports its tests pass Goyangi commits, rebases, and fast-forwards it onto the branch here. Off by default
+- Compact view: `v` now cycles turn flow, walk, and a two-row compact track of the steps
+- Fresh session at: a token point (200k by default, 50k steps) decides when to move to a fresh session, the same size in a 200k or 1M window. With `Auto`, the note is written when a turn ends past it, and the next prompt you type is carried into the new session
+- Settings numbers can be typed into
+- Desktop: the header stays at the top of the scrolled panel, and the settings screen opens over the panel
+
+### Bug Fixes
+
+- The walk view cat's eyes no longer disappear in octant art
+- The fresh session Auto hold now catches prompts you type (it checked the wrong prompt origin)
+
 ## v1.0.5 (2026-11-17)
 
 ### Bug Fixes

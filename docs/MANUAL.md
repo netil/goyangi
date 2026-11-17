@@ -17,7 +17,7 @@ Goyangi checks for a new version when a session starts (at most once an hour) an
 |---|---|
 | Open | `/goyangi` |
 | Settings | `=` in the header (`⚙` on desktop) |
-| Switch view | `[Turn flow]` / `[Walk]` above the turn flow, or `v` |
+| Switch view | `[Turn flow]` / `[Walk]` / `[Compact]` above the turn flow, or `v` |
 | Move (right / above prompt) | `v` or `>` in the header (`⇵` on desktop) |
 | Minimize | `-` in the header, or `c` |
 | Expand again | `[□]` in the minimized view |
@@ -79,6 +79,10 @@ How the turn unfolded (`f`).
 - **Scoreboard**: `HI 00042 00007` is tool calls for the session and for this turn
 - **Replay**: click a past turn in the session map to walk through it again. `T5 replay · latest ▸` returns to the live turn
 
+### Compact view
+
+`[Compact]` draws the turn flow as the minimized view's two rows: the track of main's steps, then what main is doing with steps, tools, and running subagents. The title, advice, and `f` fold work as in the turn flow. A past turn picked in the session map shows its own track
+
 The pet also shows the session's numbers:
 
 | Number | Pet |
@@ -95,6 +99,22 @@ Ghostty, kitty, and WezTerm draw the pixels with octant characters. Other termin
 ### Subagents
 
 One box per running subagent (`s`): type, status, recent tools, tool count, token share, and time. Click a name to filter the turn flow and session log. Finished agents are counted in `back to main · N returned`.
+
+### Forks
+
+With **Fork with ';'** on, a prompt that starts with `;` doesn't go to this session. It runs in a background session (`claude --bg`) while this one keeps working:
+
+```
+;fix the typo in the README
+```
+
+- In a git repository the fork gets its own worktree (`.claude/worktrees/fork-…`, branch `worktree-fork-…`), so its edits never touch the files here. Elsewhere it works in this same folder and its row says `same folder`
+- Each fork is a row in the top box: `⑂ fix the typo… · running 2m`. `⧉ attach` copies `claude attach <id>`, which opens the fork in another terminal
+- When the fork needs a permission, its row shows the request (`Bash: npm test`) with `Allow` and `Deny`. Nothing answered in 10 minutes is denied
+- The fork is told not to ask questions, to run the tests, and to end with `FORK DONE: pass` or `FORK DONE: fail <reason>`
+- On pass, Goyangi commits the worktree with the request as the message, rebases it onto the branch here, and fast-forwards. Turning Fork with ';' on is your leave for that commit. Then it removes the fork's session, worktree, and branch, and says `⑂ Merged (a1b2c3d)`
+- It waits (`waits: <files> changed here too`) while the fork's files have uncommitted changes here, and stops on a failed rebase or a failed fork, keeping the worktree. `✕ discard` drops the fork and its changes
+- Outside a repository there is nothing to merge: the fork's row goes away when it reports done
 
 ### Open sessions
 
@@ -143,7 +163,7 @@ Three rows: `Sections` (fold buttons), `Panel` (minimize, switch view, close), a
 | `p` `n` | Previous and next step |
 | `u` `d` | Scroll the session map |
 | `k` `j` | Scroll the session log |
-| `v` | Switch view |
+| `v` | Switch view (turn flow, walk, compact in turn) |
 | `c` | Minimize |
 | `x` | Close |
 
@@ -180,6 +200,7 @@ Press `=` in the header (`⚙` on desktop). Changes apply immediately and persis
 | Item | How to change | Default |
 |---|---|---|
 | Open on session start | `On` / `Off` | On |
+| View mode | `Turn flow` / `Walk` / `Compact` | Turn flow |
 | Auto update | `On` / `Off` | On |
 | Panel position | `Right` / `Bottom (above prompt)` | Right |
 | Context alert | `−` / `+`, steps of 10% | 80% |
@@ -187,6 +208,7 @@ Press `=` in the header (`⚙` on desktop). Changes apply immediately and persis
 | Stall threshold | `−` / `+`, steps of 30s | 120s |
 | Fresh session | `Ask (one click)` / `Auto` / `Off` | Ask |
 | Fresh session at | `−` / `+`, steps of 50k tokens | 200k |
+| Fork with ';' | `On` / `Off` | Off |
 | Refresh icon | `Auto` / `Nerd Font` / `Unicode ↺` / `ASCII R` | Auto |
 | Open sessions rows | `−` / `+`, 1 to 10 | 4 |
 | Browser tabs rows | `−` / `+`, 1 to 10 | 4 |

@@ -678,7 +678,7 @@ test('fresh session Auto: past the point the note is written after the turn, the
   expect(commands).toEqual([])
   expect(await ui.find({ type: 'Text', text: /Your next prompt continues in a fresh session/ })).toBeDefined()
   // The person's next prompt is held back and /clear runs
-  await $.prompt.submit({ text: 'yes, release it', origin: { kind: 'person' } } as never)
+  await $.prompt.submit({ text: 'yes, release it', origin: { kind: 'composer' } } as never)
   await clock.advance(1000)
   expect(commands).toEqual(['clear'])
   // The new session reads the note and answers the held prompt
@@ -712,4 +712,76 @@ test('whole-panel scrollbar: a terminal panel taller than its window gets a bar 
   const roomy = await $.ui.mount({ ...PANE, surface: 'terminal', props: { placement: 'dock', scroll: { bodyRows: 500 } } as never })
   expect(await roomy.find({ type: 'Client', key: 'pane-sb' })).toBeUndefined()
   await roomy.unmount()
+})
+
+test('compact view: the turn flow shows as the minimized view\'s track and status rows; v and the settings View mode row cycle the three views', async ($, on) => {
+  const kv = new Map<string, unknown>()
+  on('store.get', ($, e) => ({ value: kv.get((e as { key: string }).key) }) as never)
+  on('store.set', ($, e) => { const { key, value } = e as { key: string; value: unknown }; kv.set(key, value); return { value: undefined } as never })
+  on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
+  on('turn.start', ($, e) => ({ turnId: e.turnId }))
+  on('turn.step', async function* ($, e) {
+    return { turnId: e.turnId, index: e.index, answer: '', toolUses: [{}], stopReason: 'tool_use', usage: null } as never
+  })
+  let release = () => {}
+  on('tool.call', () => new Promise(res => { release = () => res({ result: {} as never }) }))
+  await $.turn.start({ text: 'fix the build', turnId: 't1' } as never)
+  for await (const _ of $.turn.step({ turnId: 't1', index: 0, model: 'opus', messageCount: 1 } as never)) { /* drain */ }
+  const call = $.tool.call({ tool: 'Bash', command: 'npm run build' } as never)
+  await new Promise<void>(r => setTimeout(r, 0))
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Box', key: 'compact-track' })).toBeUndefined()
+  await ui.press({ key: 'view-compact' })
+  await new Promise<void>(r => setTimeout(r, 0))
+  expect(kv.get('prefs')).toEqual({ view: 'compact' })
+  // The same tokens as the minimized view's row 1: the prompt, then the running step spinning with its tool's block
+  const track = await ui.find({ type: 'Box', key: 'compact-track' })
+  expect(track!.text).toMatch(/▶─\S1 ■/)
+  // Row 2: the status chip and the running command, then the counts
+  const status = await ui.find({ type: 'Box', key: 'compact-status' })
+  expect(status!.text).toMatch(/⚙ tool.*npm run build/)
+  expect(status!.text).toMatch(/step 1 · tool 1.*⑂ 0\/0$/)
+  // The flow chart's subagent section is not drawn, and the title and its fold key stay
+  expect(await ui.find({ type: 'Box', key: 'sec-agents' })).toBeUndefined()
+  expect(await ui.find({ text: /TURN FLOW/ })).toBeDefined()
+  await ui.press({ key: 'fold-flow' })
+  expect(await ui.find({ type: 'Box', key: 'compact-track' })).toBeUndefined()
+  await ui.press({ key: 'fold-flow' })
+  // v from compact goes back to the turn flow; the footer names the next view
+  expect(await ui.find({ type: 'Button', key: 'hint-view' })).toMatchObject({ props: { label: 'Turn flow view' } })
+  await ui.press({ key: 'hint-view' })
+  expect(await ui.find({ type: 'Box', key: 'compact-track' })).toBeUndefined()
+  expect(await ui.find({ type: 'Box', key: 'sec-agents' })).toBeDefined()
+  // The settings row cycles Turn flow, Walk, Compact, then back to Turn flow
+  await ui.press({ key: 'settings' })
+  const label = async () => ((await ui.find({ type: 'Button', key: 'set-view' }))!.props as { label?: string }).label
+  expect(await label()).toBe('Turn flow')
+  await ui.press({ key: 'set-view' })
+  expect(await label()).toBe('Walk')
+  await ui.press({ key: 'set-view' })
+  expect(await label()).toBe('Compact')
+  expect(await ui.find({ type: 'Box', key: 'compact-track' })).toBeDefined()
+  await ui.press({ key: 'set-view' })
+  expect(await label()).toBe('Turn flow')
+  release()
+  await call
+  await ui.unmount()
+})
+
+test('compact view: v from the walk view goes to compact, and the desktop draws it inside the bordered view box', async ($, on) => {
+  on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
+  const term = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await term.press({ key: 'view-office' })
+  expect(await term.find({ type: 'Button', key: 'hint-view' })).toMatchObject({ props: { label: 'Compact view' } })
+  await term.press({ key: 'hint-view' })
+  expect(await term.find({ type: 'Box', key: 'compact-track' })).toBeDefined()
+  expect(await term.find({ text: /TURN WALK/ })).toBeUndefined()
+  // Before the first prompt the track says so, like the minimized view
+  expect((await term.find({ type: 'Box', key: 'compact-track' }))!.text).toMatch(/waiting for the next prompt/)
+  await term.unmount()
+  const desk = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(await desk.find({ type: 'Box', key: 'compact-track' })).toBeDefined()
+  expect(await desk.find({ type: 'Box', key: 'compact-status' })).toBeDefined()
+  await desk.unmount()
 })

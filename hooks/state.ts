@@ -1477,3 +1477,43 @@ export function findTabs(list: readonly Tab[], q: string): Tab[] {
 export const handoffFrom = (text: string): string | undefined => /Handoff from Claude Code session "([^"]*)"/.exec(text)?.[1]
 // The sender's session id from the same line (handoffNote writes it in parentheses after the name), to match a note to the pull that asked for it
 export const handoffSid = (text: string): string | undefined => /Handoff from Claude Code session "[^"]*" \(([^)]+)\)/.exec(text)?.[1]
+
+// Fork (a prompt that starts with ;): the request runs in a background session (claude --bg), in its own git worktree where the folder is a repository.
+// The text after the ; (spaces trimmed), or undefined when the prompt is no fork or names nothing to do.
+export function forkText(text: string): string | undefined {
+  if (!text.startsWith(';')) return undefined
+  const rest = text.slice(1).trim()
+  return rest || undefined
+}
+// The short id `claude --bg` prints ("backgrounded · df508702"): the first 8 characters of the new session's id, which the fork finds itself by.
+export function bgId(stdout: string): string | undefined {
+  return /backgrounded\s*·\s*([0-9a-f]{8})/.exec(stdout)?.[1]
+}
+// The first prompt of the fork's session: the request as typed, and the rules it works under.
+export function forkBrief(request: string, git: boolean): string {
+  return [
+    'This is a fork: the person asked for this from another session, which keeps working meanwhile. Their request:',
+    '',
+    request,
+    '',
+    'Rules:',
+    git
+      ? '- Change files only inside this worktree. Do not commit: the session that forked you commits and merges your changes.'
+      : '- Another session is working in this same folder. Change only the files the request needs.',
+    '- Do not ask the person questions. Where a choice is needed, make a reasonable one and say so in your report.',
+    '- If the project has tests, run them before you finish.',
+    '- End with a short report of what you changed, and as its last line exactly `FORK DONE: pass`, or `FORK DONE: fail <reason>` when the work or its tests failed.',
+  ].join('\n')
+}
+// The fork's verdict from its answer's last FORK DONE line, or undefined while it has none.
+export function forkDone(answer: string): { ok: boolean; reason: string } | undefined {
+  const m = [...answer.matchAll(/FORK DONE:\s*(pass|fail)\b[ \t]*(.*)/g)].at(-1)
+  return m ? { ok: m[1] === 'pass', reason: m[2]!.trim() } : undefined
+}
+// One line for a permission request: the tool and what it would do (a Bash command, a file path), cut to max characters.
+export function askLine(tool: string, input: unknown, max = 60): string {
+  const i = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>
+  const what = String(i.command ?? i.file_path ?? i.path ?? i.url ?? i.pattern ?? '').replace(/\s+/g, ' ').trim()
+  const line = what ? `${tool}: ${what}` : tool
+  return line.length > max ? `${line.slice(0, max - 1)}…` : line
+}

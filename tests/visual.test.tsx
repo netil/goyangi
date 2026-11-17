@@ -331,7 +331,7 @@ test('settings screen: opens with ⚙; changing auto open and thresholds is save
   await ui.press({ key: 'set-autoOpen' })
   await ui.press({ key: 'inc-ctxAlertPercent' })
   await ui.press({ key: 'dec-stallSeconds' })
-  expect((await ui.findAll({ type: 'Button', text: /^Off$/ })).length).toBe(2)
+  expect((await ui.findAll({ type: 'Button', text: /^Off$/ })).length).toBe(3) // auto open, auto update, and Fork with ';' (off by default)
   expect((await ui.find({ type: 'Text', in: 'num-ctxAlertPercent' }))?.text).toBe('90%')
   expect((await ui.find({ type: 'Text', in: 'num-stallSeconds' }))?.text).toBe('90s')
   // A value can be typed into: a click focuses it (numfield.tsx), the first digit replaces the value, Enter saves it clamped like the buttons.
