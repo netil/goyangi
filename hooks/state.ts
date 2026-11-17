@@ -692,6 +692,15 @@ export function scopeKey(prefix: string, key: string): string {
 // Auto-update check interval. session.start fires again on every plugin reload, so don't check again in between.
 export const UPDATE_EVERY_MS = 3600_000
 
+// Fresh session: at or past this context %, Goyangi writes the handoff note itself instead of spending a model turn, and hands over whatever the token point is
+export const FRESH_FULL = 95
+// Whether the context is past the fresh-session point: freshAtK thousand tokens (0 turns the token point off), or FRESH_FULL % of the window, whichever comes first.
+// Tokens, not a share of the window: a long context slows and blurs the work at the same size whether the window is 200k or 1M.
+export function freshDue(ctx: { percent?: number; window?: number } | undefined, freshAtK: number): boolean {
+  const pct = ctx?.percent ?? 0
+  return pct >= FRESH_FULL || (freshAtK > 0 && (pct / 100) * (ctx?.window ?? 0) >= freshAtK * 1000)
+}
+
 // Whether to check for updates: the setting is on, installed from the Goyangi marketplace, and the interval has passed since the last check.
 // Installs live at <config dir>/plugins/cache/<marketplace>/<plugin>/<version> ($.plugin.root). Dev copies (other marketplaces, --plugin-dir) are not checked.
 export function shouldCheckUpdate(enabled: boolean, root: string, lastAt: unknown, now: number): boolean {
@@ -816,6 +825,8 @@ export function dotRows(grid: readonly string[], pal: Record<string, string>, bl
         const upper = keep?.skip.has(`${qx},${up}`) ? pal[keep.fill] : px[i], lower = keep?.skip.has(`${qx},${up + 1}`) ? pal[keep.fill] : px[i + 2]
         return upper ?? lower
       }) : px
+      // Octants: an eye is 2 of a cell's 8 pixels and loses the tie with the empty pixels, so a cell with eye pixels keeps the eye color
+      if (!blocks && pal.E && px.includes(pal.E)) keepColor = pal.E
       // A cell holds two colors and the empty pixels count as a third: next to a feature, the empty pixels take the head's color so the feature stays and no dark gap opens
       if (keepColor) {
         const others = cellPx.filter((c): c is string => c !== undefined && c !== keepColor)

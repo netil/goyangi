@@ -19,6 +19,12 @@
       "description": "Shows an alert when context usage exceeds this value. 0 turns it off",
       "default": 80
     },
+    "freshAtK": {
+      "type": "number",
+      "title": "Fresh session point (thousand tokens)",
+      "description": "Context size, in thousands of tokens, at which Goyangi offers (Ask) or prepares (Auto) a fresh session. It also happens at 95% of the window. 0 leaves only the 95% point",
+      "default": 200
+    },
     "turnCostAlertUsd": {
       "type": "number",
       "title": "Turn cost alert threshold ($)",

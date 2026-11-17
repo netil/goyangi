@@ -241,7 +241,7 @@ test('the minimized view has a settings button that opens the same settings scre
   expect(await band.find({ type: 'Text', text: /^⚙ Settings$/ })).toBeDefined()
   // Settings are live here too: + raises the context alert threshold
   await band.press({ key: 'inc-ctxAlertPercent' })
-  expect(await band.find({ type: 'Text', text: /^90%$/ })).toBeDefined()
+  expect((await band.find({ type: 'Text', in: 'num-ctxAlertPercent' }))?.text).toBe('90%')
   await band.press({ key: 'band-settings' })
   expect(await band.find({ type: 'Text', text: /^⚙ Settings$/ })).toBeUndefined()
   await band.unmount()
@@ -606,11 +606,11 @@ test('open sessions and browser tabs sit side by side at the same height on wide
   expect((await lists(70)).column).toBe(true)
 })
 
-test('fresh session: past the context alert a one-click row appears; it asks the model for a handoff note, then /clear, and the new session starts from the note', async ($, on) => {
+test('fresh session: past 200k tokens a one-click row appears; it asks the model for a handoff note, then /clear, and the new session starts from the note', async ($, on) => {
   const clock = mock.clock(on, { now: 1_700_000_000_000 })
   mock.store(on)
   mock.env(on, { TMPDIR: '/tmp/t/' })
-  on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000, percent: 85 }, rateLimits: [] } }))
+  on('session.usage', () => ({ value: { startedAt: 0, context: { window: 300000, percent: 85 }, rateLimits: [] } }))
   on('session.id', () => ({ value: 'old-id' }) as never)
   on('session.start', ($, e) => ({ cwd: (e as { cwd: string }).cwd }) as never)
   on('command.register', () => ({ value: undefined }) as never)
@@ -626,7 +626,7 @@ test('fresh session: past the context alert a one-click row appears; it asks the
   on('command.run', ($, e) => { commands.push((e as { command: string }).command); return { text: '' } as never })
   on('turn.complete', () => ({ text: '' }))
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  // 85% is past the 80% alert: the row offers one click
+  // 85% of 300k is 255k, past the 200k point: the row offers one click
   expect(await ui.find({ type: 'Button', key: 'fresh-go' })).toBeDefined()
   await ui.press({ key: 'fresh-go' })
   await clock.advance(10)
@@ -642,6 +642,50 @@ test('fresh session: past the context alert a one-click row appears; it asks the
   await clock.advance(1000)
   expect(prompts.at(-1)).toContain('Read the handoff note at /tmp/t/goyangi/handoff-old-id.md')
   expect(prompts.at(-1)).toContain('claude --resume old-id')
+  await ui.unmount()
+})
+
+test('fresh session Auto: past the point the note is written after the turn, the next prompt is held, /clear runs, and the new session answers that prompt', async ($, on) => {
+  const clock = mock.clock(on, { now: 1_700_000_000_000 })
+  mock.store(on, { prefs: { freshMode: 'auto' } })
+  mock.env(on, { TMPDIR: '/tmp/t/' })
+  on('session.usage', () => ({ value: { startedAt: 0, context: { window: 300000, percent: 85 }, rateLimits: [] } }))
+  on('session.id', () => ({ value: 'old-id' }) as never)
+  on('session.start', ($, e) => ({ cwd: (e as { cwd: string }).cwd }) as never)
+  on('command.register', () => ({ value: undefined }) as never)
+  on('tool.register', () => ({ value: { tool: 'x' } }) as never)
+  on('process.run', () => ({ value: { exitCode: 0, stderr: '', stdout: '' } }) as never)
+  on('ui.toast', () => ({ value: undefined }) as never)
+  const prompts: string[] = []
+  on('prompt.submit', ($, e) => { prompts.push((e as { text: string }).text); return { text: (e as { text: string }).text } as never })
+  const files: Record<string, string> = {}
+  on('fs.write', ($, e) => { const x = e as { path: string; text: string }; files[x.path] = x.text; return { value: undefined } as never })
+  on('fs.read', ($, e) => ({ value: files[(e as { path: string }).path] ?? '' }) as never)
+  const commands: string[] = []
+  on('command.run', ($, e) => { commands.push((e as { command: string }).command); return { text: '' } as never })
+  on('turn.complete', () => ({ text: '' }))
+  // Auto in the saved settings (session.start reads them)
+  await $.session.start({ cwd: '/x', source: 'startup' } as never)
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  // A turn ends past the point: the model is asked for the note, and nothing is cleared yet
+  await $.turn.complete({ turnId: 't0', answer: 'Shall I release 1.0.6?', durationMs: 10, isAborted: false, reason: 'answer' } as never)
+  await clock.advance(1000)
+  expect(prompts.at(-1)).toContain('Write a handoff note to /tmp/t/goyangi/handoff-old-id.md')
+  expect(prompts.at(-1)).toContain('word for word')
+  files['/tmp/t/goyangi/handoff-old-id.md'] = '# Handoff\nasked: release 1.0.6?'
+  await $.turn.complete({ turnId: 't1', answer: 'handoff written', durationMs: 10, isAborted: false, reason: 'answer' } as never)
+  await clock.advance(1000)
+  expect(commands).toEqual([])
+  expect(await ui.find({ type: 'Text', text: /Your next prompt continues in a fresh session/ })).toBeDefined()
+  // The person's next prompt is held back and /clear runs
+  await $.prompt.submit({ text: 'yes, release it', origin: { kind: 'person' } } as never)
+  await clock.advance(1000)
+  expect(commands).toEqual(['clear'])
+  // The new session reads the note and answers the held prompt
+  await $.session.start({ cwd: '/x', source: 'clear' } as never)
+  await clock.advance(1000)
+  expect(prompts.at(-1)).toContain('Read the handoff note at /tmp/t/goyangi/handoff-old-id.md')
+  expect(prompts.at(-1)).toContain('yes, release it')
   await ui.unmount()
 })
 

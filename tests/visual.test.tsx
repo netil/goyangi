@@ -324,7 +324,7 @@ test('settings screen: opens with ⚙; changing auto open and thresholds is save
   await ui.press({ key: 'settings' })
   expect(await ui.find({ text: /^⚙ Settings$/ })).toBeDefined()
   expect(await ui.find({ text: /^On$/ })).toBeDefined()
-  expect(await ui.find({ text: /^80%$/ })).toBeDefined()
+  expect((await ui.find({ type: 'Text', in: 'num-ctxAlertPercent' }))?.text).toBe('80%')
   // Auto update is on by default; pressing turns it off
   expect(await ui.find({ text: /^On$/ })).toBeDefined()
   await ui.press({ key: 'set-autoUpdate' })
@@ -332,8 +332,32 @@ test('settings screen: opens with ⚙; changing auto open and thresholds is save
   await ui.press({ key: 'inc-ctxAlertPercent' })
   await ui.press({ key: 'dec-stallSeconds' })
   expect((await ui.findAll({ type: 'Button', text: /^Off$/ })).length).toBe(2)
-  expect(await ui.find({ text: /^90%$/ })).toBeDefined()
-  expect(await ui.find({ text: /^90s$/ })).toBeDefined()
+  expect((await ui.find({ type: 'Text', in: 'num-ctxAlertPercent' }))?.text).toBe('90%')
+  expect((await ui.find({ type: 'Text', in: 'num-stallSeconds' }))?.text).toBe('90s')
+  // A value can be typed into: a click focuses it (numfield.tsx), the first digit replaces the value, Enter saves it clamped like the buttons.
+  // Text that isn't a number (nothing typed) changes nothing.
+  const typeInto = async (k: string, keys: string[]) => {
+    await ui.pointer({ type: 'down', x: 0, y: 0, button: 'left', in: `num-${k}` } as never)
+    for (const key of keys) await ui.key({ key, in: `num-${k}` })
+  }
+  await typeInto('turnCostAlertUsd', ['7', 'return'])
+  expect((await ui.find({ type: 'Text', in: 'num-turnCostAlertUsd' }))?.text).toBe('$7')
+  await typeInto('tabRows', ['9', '9', 'return'])
+  expect((await ui.find({ type: 'Text', in: 'num-tabRows' }))?.text).toBe('10')
+  await typeInto('tabRows', ['backspace', 'return'])
+  expect((await ui.find({ type: 'Text', in: 'num-tabRows' }))?.text).toBe('10')
+  // A click elsewhere in the panel (ui.focus) drops an edit started earlier and keeps the value
+  await typeInto('stallSeconds', ['4', '5'])
+  expect((await ui.find({ type: 'Text', in: 'num-stallSeconds' }))?.text).toBe('45')
+  await new Promise<void>(r => setTimeout(r, 350))
+  await $.ui.focus({ component: 'Pane', requestId: 'goyangi', origin: { kind: 'person' } }).catch(() => undefined)
+  expect((await ui.find({ type: 'Text', in: 'num-stallSeconds' }))?.text).toBe('90s')
+  // Escape never reaches the number and raises no event: the pane redraws without the keyboard (isFocused false), which drops the edit
+  await ui.redraw({ isFocused: true } as never)
+  await typeInto('stallSeconds', ['4', '5'])
+  expect((await ui.find({ type: 'Text', in: 'num-stallSeconds' }))?.text).toBe('45')
+  await ui.redraw({ isFocused: false } as never)
+  expect((await ui.find({ type: 'Text', in: 'num-stallSeconds' }))?.text).toBe('90s')
   await ui.unmount()
   // Next session: reads the saved value (autoOpen off) and doesn't open the panel
   await $.session.start({ source: 'startup', cwd: '/tmp' } as never)
@@ -342,9 +366,9 @@ test('settings screen: opens with ⚙; changing auto open and thresholds is save
   // Resetting to defaults clears the saved values
   const ui2 = await $.ui.mount({ plugin: 'goyangi', surface: 'terminal', component: 'Pane', props: {} as never, requestId: 'goyangi', viewport: { columns: 120, rows: 50 } as never })
   // Reopening shows the saved value (90%) as is (the settings screen stays open)
-  expect(await ui2.find({ type: 'Text', text: /^90%$/ })).toBeDefined()
+  expect((await ui2.find({ type: 'Text', in: 'num-ctxAlertPercent' }))?.text).toBe('90%')
   await ui2.press({ key: 'settings-reset' })
-  expect(await ui2.find({ type: 'Text', text: /^80%$/ })).toBeDefined()
+  expect((await ui2.find({ type: 'Text', in: 'num-ctxAlertPercent' }))?.text).toBe('80%')
   await ui2.unmount()
   // Back to defaults (auto open on), so the next session opens it
   await $.session.start({ source: 'startup', cwd: '/tmp' } as never)
@@ -834,7 +858,8 @@ test('header buttons: 3-cell icon buttons side by side in the terminal; on deskt
       await ui.press({ key: 'settings' })
       expect(await btn('settings')).toMatchObject({ variant: 'primary' })
       // The status chip isn't overlaid (not an absolutely positioned box)
-      const chip = (await ui.findAll({ type: 'Box' })).filter(b => b.props.position === 'absolute' && b.props.top === 0)
+      // (on desktop the header itself, head-sticky, is positioned at the top of the window)
+      const chip = (await ui.findAll({ type: 'Box' })).filter(b => b.props.position === 'absolute' && b.props.top === 0 && b.key !== 'head-sticky')
       expect(chip).toHaveLength(0)
     }
     await ui.unmount()

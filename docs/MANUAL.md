@@ -56,7 +56,7 @@ Logo, session summary (turns, steps, tool calls, cost), a status chip, and butto
 - Under 64 columns the gauges move below the left rows
 - The last row lists server tools (advisor, web search, ...) with call counts and average time. Shortcut `a` folds it
 
-**Continue in a fresh session.** When context passes the alert threshold, `⟳ ctx 85% · Continue in a fresh session` appears. One click writes a handoff note, runs `/clear`, and starts a new session whose first prompt points at the note. The old session stays available with `claude --resume <id>`. At 95% or more Goyangi writes the note itself without a model turn. The **Fresh session** setting picks `Ask`, `Auto`, or `Off`.
+**Continue in a fresh session.** When the context reaches the **Fresh session at** point (200k tokens by default, the same size in a 200k or 1M window) or 95% of the window, Goyangi moves the work to a new session in the same window instead of compacting. With `Ask`, `⟳ ctx 210k · Continue in a fresh session` appears, and one click writes a handoff note, runs `/clear`, and starts a new session whose first prompt points at the note. With `Auto`, the note is written when a turn ends past the point, and the panel shows `⟳ Your next prompt continues in a fresh session`. The next prompt you type is held back, `/clear` runs, and the new session reads the note and answers that prompt, so nothing you haven't asked for runs on its own. The old session stays available with `claude --resume <id>`. At 95% or more Goyangi writes the note itself without a model turn. `Off` turns all of this off.
 
 ### Turn flow
 
@@ -186,13 +186,14 @@ Press `=` in the header (`⚙` on desktop). Changes apply immediately and persis
 | Turn cost alert | `−` / `+`, steps of $1 | $2 |
 | Stall threshold | `−` / `+`, steps of 30s | 120s |
 | Fresh session | `Ask (one click)` / `Auto` / `Off` | Ask |
+| Fresh session at | `−` / `+`, steps of 50k tokens | 200k |
 | Refresh icon | `Auto` / `Nerd Font` / `Unicode ↺` / `ASCII R` | Auto |
 | Open sessions rows | `−` / `+`, 1 to 10 | 4 |
 | Browser tabs rows | `−` / `+`, 1 to 10 | 4 |
 
 0 turns an alert off. An auto-opened panel waits until the terminal is at least 110 columns wide.
 
-Initial values for some items come from plugin options (`/plugin configure goyangi@goyangi`): `autoOpen`, `ctxAlertPercent`, `turnCostAlertUsd`, `stallSeconds`, `sessionRows`, `tabRows`. A value changed in the settings screen takes precedence.
+Initial values for some items come from plugin options (`/plugin configure goyangi@goyangi`): `autoOpen`, `ctxAlertPercent`, `turnCostAlertUsd`, `stallSeconds`, `freshAtK`, `sessionRows`, `tabRows`. A value changed in the settings screen takes precedence.
 
 ### Refresh icon
 

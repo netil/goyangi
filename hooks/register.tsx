@@ -5,7 +5,7 @@ import {
   addLog, addDiff, lineDelta, addServer, arrowFrame, bar, branchLines, bump, displayWidth, ellipsis, joinLines, usd, logWindow, countTool, describeAgent, emptyTree, ended, fit, flowColumns, flowEnd, flowStart, fmtTok, isBusy, runs, toolClass, turnBegin, turnMark,
   patchLoop, secs, summarize, toolEnd, toolStart, topTools, visibleAgents, who,
   toolErr, noteFail, addToolTime, slowTools, ctxLevel, focusFlow, stepOpen, spawnOrigin, returnTarget, headState,
-  shouldCheckUpdate, updatedVersion, deskOf, CHARACTERS, characterOf, look as LOOK, dotRows, dotSvg, dotRgba, pixelTerminal, octantTerminal, iconKind, REFRESH_ICON, dotScene, flagShapes, flagSvg, parsePeers, parseAgents, appOf, hostTag, parseTabs, findTabs, stick, treeRows, handoffLabel, handoffSid, tabsScript, firefoxCmd, firefoxFocus, BROWSERS, pickBrowsers, isAgent, cmuxTarget, screenState, handoffNote, pullRequest, pullFrom, handoffFrom, sprite, miniSprite, petMood, petPixels, overlay, faceKeep, replayAt, costMark, prop, stations,
+  shouldCheckUpdate, updatedVersion, freshDue, FRESH_FULL, deskOf, CHARACTERS, characterOf, look as LOOK, dotRows, dotSvg, dotRgba, pixelTerminal, octantTerminal, iconKind, REFRESH_ICON, dotScene, flagShapes, flagSvg, parsePeers, parseAgents, appOf, hostTag, parseTabs, findTabs, stick, treeRows, handoffLabel, handoffSid, tabsScript, firefoxCmd, firefoxFocus, BROWSERS, pickBrowsers, isAgent, cmuxTarget, screenState, handoffNote, pullRequest, pullFrom, handoffFrom, sprite, miniSprite, petMood, petPixels, overlay, faceKeep, replayAt, costMark, prop, stations,
   WINDOW_MS, limitEta, isStalled, cacheDropped, ctxParts, upsertRecord, historySummary, pickKids,
   miniTrack, firstLine, toolResult, addFile, timeStrip, overlaps, archiveTurn, mapTokens, weightBar, timeShares, shareWidths, advise, isKeyLog, brailleSpark, lineGauge, rowCard, wrapLines, resumed, scopeKey,
 } from './state'
@@ -50,6 +50,8 @@ const archive = atom({ plugin: 'goyangi', key: 'archive' } as const, {} as Recor
 // Values changed in the settings screen (kept across sessions as 'prefs' in $.store) and whether the settings screen is open.
 const prefs = atom({ plugin: 'goyangi', key: 'prefs' } as const, {} as Prefs)
 const settingsOpen = atom({ plugin: 'goyangi', key: 'settingsOpen' } as const, false)
+// Raised to drop the edit of a settings number (Escape, see editAt)
+const numDrop = atom({ plugin: 'goyangi', key: 'numDrop' } as const, 0)
 // Whether the panel is drawn above the prompt when position is bottom. When right, the engine's Pane holds the open state.
 const bottomOpen = atom({ plugin: 'goyangi', key: 'bottomOpen' } as const, false)
 // Open Claude Code sessions on this machine (the Open sessions box above the session map), refreshed every 30 seconds
@@ -99,7 +101,10 @@ const IMG_SCALE = 8
 const FOOT_H = 3 // Footer rows: sections, panel, keys
 const FOOT_LABEL_W = 9 // Width of the leading name (section, panel) on footer rows
 const SETTING_W = 48 // One settings item: the name (22), a gap, and the widest control ('[ Bottom (above prompt) ]', 25)
-const SETTINGS_H = 15 // Settings screen height: border 2 + title 1 + items 11 + hint 1
+// Desktop header: rows its spacer takes in the flow (the app's default buttons are taller than a text row, plus a gap), and the opaque base painted
+// under positioned layers there (sticky header, settings overlay), since desktop tints are translucent. inverseText is the theme's background-side color.
+const DESK_HEAD_H = 2
+const DESK_BASE = 'inverseText'
 const CARD_MAX = 300 // Max characters carried in a hidden card
 const SAID_MAX = 2000 // Length of the response head collected to extract the intent line
 const CONTINUE = '(continued without input)' // Prompt shown for a turn started without input
@@ -261,7 +266,7 @@ function checkAdvice($: Parameters<typeof update>[0] & { ui: { toast: (text: str
 }
 
 // Settings: defaults come from the plugin settings (userConfig), overlaid with values changed in the settings screen (prefs). Changes apply to cur immediately.
-let base: Required<Prefs> = { autoOpen: true, ctxAlertPercent: 80, turnCostAlertUsd: 2, stallSeconds: 120, position: 'right', autoUpdate: true, view: 'default', character: 'cat', sessionRows: 4, tabRows: 4, freshMode: 'ask', icon: 'auto' }
+let base: Required<Prefs> = { autoOpen: true, ctxAlertPercent: 80, turnCostAlertUsd: 2, stallSeconds: 120, position: 'right', autoUpdate: true, view: 'default', character: 'cat', sessionRows: 4, tabRows: 4, freshMode: 'ask', freshAtK: 200, icon: 'auto' }
 let cur: Required<Prefs> = { ...base }
 const applyPrefs = (p: Prefs) => { cur = { ...base, ...p } }
 // Overlay only the changed items (patch) on the stored values. With several sessions open, each session's values go stale,
@@ -277,6 +282,19 @@ async function savePrefs($: Parameters<typeof update>[0] & { store: { get: (k: s
 // Setting values (userConfig). Non-numbers fall back to the default. 0 means off.
 const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d)
 // Rows a scrolling box (Sessions, Browser tabs) shows at once: 1 to 10, default 4
+type NumKey = 'ctxAlertPercent' | 'turnCostAlertUsd' | 'stallSeconds' | 'freshAtK' | 'sessionRows' | 'tabRows'
+// Upper limits of the numeric settings (0 is the lower, meaning off); the row counts are 1 to 10 (rowsOf)
+// Escape never reaches a settings number (numfield.tsx). On desktop it hands the keyboard back, so the Pane redraws with isFocused turning
+// false (paneFocused holds the last value); in the terminal it is the pane's close key, refused while a number is edited (ui.close). That drop, or a ui.focus (a click elsewhere in the site) past the one the number's own click raises
+// (within FOCUS_GRACE_MS of the edit's start), raises numDrop while a number is being edited, and every number drops its edit.
+// editAt is when the edit started (posted by the module), undefined when none.
+let paneFocused = false
+// Drops counted while drawing (Escape), where state can't be written; added to numDrop for the numbers' drop prop
+let escDrops = 0
+let editAt: number | undefined
+const FOCUS_GRACE_MS = 300
+const NUM_MAX = { ctxAlertPercent: 100, turnCostAlertUsd: 50, stallSeconds: 600, freshAtK: 1000 } as const
+const clampPref = (key: NumKey, v: number) => (key === 'sessionRows' || key === 'tabRows' ? rowsOf(v) : Math.max(0, Math.min(NUM_MAX[key], Math.round(v))))
 const rowsOf = (v: unknown) => Math.max(1, Math.min(10, Math.round(num(v, 4))))
 
 // Auto-update: refresh the marketplace and plugin, and notify if a new version arrived. It applies after /reload-plugins or a restart.
@@ -339,24 +357,25 @@ async function myHandoff($: EngineInterface): Promise<string> {
   const msgs = await $.session.messages().catch(() => [])
   return handoffNote({ name, sessionId: id, cwd: await $.session.cwd(), prompt: t.turn.prompt, files: t.files?.edit ?? [], messages: Array.isArray(msgs) ? msgs : [] })
 }
-// Fresh session: before the context fills, carry the work into a new session in this same window, with no compaction.
+// Fresh session: before the context grows heavy, carry the work into a new session in this same window, with no compaction.
 // 1. The model writes a handoff note to a file (Goyangi's own note instead when the context is too full for that turn).
-// 2. After that turn, /clear starts a new session here; the old one stays resumable with claude --resume.
-// 3. The new session's first prompt points at the note. The pending note lives in $.store, so it survives anything /clear resets.
-const FRESH_FULL = 95 // At or past this context %, Goyangi writes the note itself instead of spending a model turn
+// 2. Ask (one click): after that turn, /clear starts a new session here. Auto: the note waits ('ready') for the person's next prompt, which is held back,
+//    and /clear runs then, so the new session answers that prompt and nothing the person hasn't asked for runs on its own.
+// 3. The new session's first prompt points at the note (and carries the held prompt). The old session stays resumable with claude --resume.
+//    The pending note lives in $.store, so it survives anything /clear resets.
 let freshFile = ''
-async function startFresh($: EngineInterface) {
+async function startFresh($: EngineInterface, wait = false) {
   if (await read($, freshStage)) return
   const id = await $.session.id()
   freshFile = `${(await $.env.get('TMPDIR').catch(() => undefined)) || '/tmp/'}goyangi/handoff-${id}.md`.replace(/\/\/+/g, '/')
-  await $.store.set('fresh', { file: freshFile, prev: id, at: Date.now() })
+  await $.store.set('fresh', { file: freshFile, prev: id, at: Date.now(), wait })
   if (((await $.session.usage().catch(() => undefined))?.context.percent ?? 0) >= FRESH_FULL) {
     await $.fs.write(freshFile, await myHandoff($))
-    return clearToFresh($)
+    return wait ? update($, freshStage, () => 'ready') : clearToFresh($)
   }
-  await update($, freshStage, () => 'writing')
-  $.ui.toast('Goyangi · Writing a handoff note, then continuing in a fresh session')
-  await $.prompt.submit({ text: `The context is nearly full, so this work continues in a fresh session in this window. Write a handoff note to ${freshFile} for the session that picks it up: the goal, what is done, the decisions made and why, the files involved, what is left and the very next step, and anything that went wrong or is easy to miss. Write only that file, then reply "handoff written".` })
+  await update($, freshStage, () => (wait ? 'preparing' : 'writing'))
+  $.ui.toast(wait ? 'Goyangi · Writing a handoff note; your next prompt continues in a fresh session' : 'Goyangi · Writing a handoff note, then continuing in a fresh session')
+  await $.prompt.submit({ text: `The context has grown long, so this work continues in a fresh session in this window. Write a handoff note to ${freshFile} for the session that picks it up: the goal, what is done, the decisions made and why, the files involved, what is left and the very next step, and anything that went wrong or is easy to miss. If your last reply asked the person something, put that question in the note word for word. Write only that file, then reply "handoff written".` })
 }
 // After the note: /clear, outside the turn's hooks (a hook the turn waits on can't run a command)
 async function clearToFresh($: EngineInterface) {
@@ -640,6 +659,12 @@ const inkBox = (mode: InkMode, B: ElementConstructor<BoxProps>): ElementConstruc
 
 // The panel screen. Both the right split (Pane) and the area above the prompt (AbovePrompt, position bottom) render with this function.
 async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePrompt'>) {
+  if (e.component === 'Pane') {
+    // Escape from a settings number: the pane loses the keyboard (see paneFocused)
+    const focused = (e.props as { isFocused?: boolean }).isFocused === true
+    if (paneFocused && !focused && editAt !== undefined) { editAt = undefined; escDrops++ }
+    paneFocused = focused
+  }
   const { Box: RawBox0, Text: RawText, Button: RawButton } = $.ui.resolve(e)
   const RawBox = inkBox(inkMode(e), RawBox0)
   const Text = inkText(inkMode(e), RawText)
@@ -737,8 +762,8 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
   // The refresh icon for this terminal (state.ts iconKind): a Nerd Font symbol, the arrow ↺, or a letter
   const REFRESH = REFRESH_ICON[iconKind(pfTop.icon, iconEnv)]
   const fStage = await read($, freshStage)
-  const ctxNow = usage?.context.percent ?? 0
-  const freshRow = !!fStage || (pfTop.freshMode !== 'off' && pfTop.ctxAlertPercent > 0 && ctxNow >= pfTop.ctxAlertPercent)
+  const ctxK = Math.round(((usage?.context.percent ?? 0) / 100) * (usage?.context.window ?? 0) / 1000)
+  const freshRow = pfTop.freshMode !== 'off' && (!!fStage || freshDue(usage?.context, pfTop.freshAtK))
   const topBody = (twoCol ? Math.max(4, gaugeN) : 4 + Math.ceil(gaugeN / 2)) + 1 + (freshRow ? 1 : 0)
   const TOP_H = 2 + topBody // border 2 rows + body
   // On desktop a fixed height squeezes overflowing rows on top of each other, and a min height leaves a blank row below since the border is thinner than a row.
@@ -749,14 +774,13 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
   const topH_ = e.surface === 'desktop' ? {} : { height: TOP_H }
   const topH = TOP_H
   const sOpen = await read($, settingsOpen)
-  // Rows the settings screen takes in the flow: on desktop only; the terminal draws it as an overlay over the top of the visible window
-  const settingsRows = sOpen && desk ? SETTINGS_H : 0
   // Base height for the vertical split: a docked panel uses the body row count from the engine (scroll.bodyRows). viewport.rows is the whole terminal
   // height and larger than the panel. Above the prompt (inline) grows with content, so bodyRows equals the content length and can't serve as the base.
   const pp = e.props as { placement?: string; scroll?: { bodyRows?: number; offset?: number } }
-  // Sticky header (terminal): when the engine has scrolled the panel (scroll.offset > 0), the header is drawn over the top of the visible window
-  // and its place in the flow keeps an empty row, so it's drawn once and its buttons keep unique keys. Scrolling redraws with the new offset.
-  const stickTop = !desk ? Math.max(0, pp.scroll?.offset ?? 0) : 0
+  // Sticky header: when the engine has scrolled the panel (scroll.offset > 0), the header is drawn over the top of the visible window
+  // and its place in the flow keeps an empty space, so it's drawn once and its buttons keep unique keys. Scrolling redraws with the new offset.
+  // On desktop the header is always positioned (offset 0 included) over a spacer of DESK_HEAD_H rows, so scrolling never shifts the rows below it.
+  const stickTop = Math.max(0, pp.scroll?.offset ?? 0)
   const paneRows = pp.placement === 'dock' && pp.scroll?.bodyRows ? pp.scroll.bodyRows : rows
   // From the panel height, subtract the header, top row, settings screen, view row, turn flow, subagent boxes, the session map box's margins, border, title, and legend (7 rows),
   // the session log box's border and title (3 rows), and the footer (FOOT_H rows), and use the rest. The session map defaults to 4 rows (⇕ splits it in half) and the session log takes the rest.
@@ -793,7 +817,7 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
   // Side by side the row buttons shrink to arrows (↑ send, ↓ pull, ↗ focus), leaving the half-width rows to the names.
   // Each box of the pair: equal halves, and in the terminal the same fixed height so their borders line up
   const listBox = pairLists ? (desk ? { width: '50%', flexGrow: 1, minWidth: 0 } as const : { width: listW, flexShrink: 1, minWidth: 0, height: listsH }) : {}
-  const spare = paneRows - (1 + topH + settingsRows + 1 + FLOW_H + agentRows.length * BOX_ROWS + 7 + 3 + FOOT_H + listsH)
+  const spare = paneRows - (1 + topH + 1 + FLOW_H + agentRows.length * BOX_ROWS + 7 + 3 + FOOT_H + listsH)
   const mapRows = tall ? Math.max(MAP_ROWS, Math.floor(spare / 2)) : MAP_ROWS
   // On desktop the panel scrolls and row heights and borders differ from the terminal, so leftover rows aren't split. The session log defaults to 4 rows.
   const logRows = e.surface === 'desktop' ? LOG_ROWS : Math.max(LOG_ROWS, spare - mapRows)
@@ -1143,8 +1167,8 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
       {freshRow && (
         <Box key="fresh-row">
           {fStage
-            ? <Text color={C.tool} wrap="truncate">⟳ {fStage === 'writing' ? 'Writing the handoff note, then a fresh session starts here' : 'Starting a fresh session here'}</Text>
-            : <Button key="fresh-go" hover={hov('fresh-go')} plain label={`⟳ ctx ${ctxNow}% · Continue in a fresh session`} onPress={() => quiet(startFresh($))} />}
+            ? <Text color={C.tool} wrap="truncate">⟳ {{ writing: 'Writing the handoff note, then a fresh session starts here', preparing: 'Writing the handoff note for a fresh session', ready: 'Your next prompt continues in a fresh session' }[fStage] ?? 'Starting a fresh session here'}</Text>
+            : <Button key="fresh-go" hover={hov('fresh-go')} plain label={`⟳ ctx ${ctxK}k · Continue in a fresh session`} onPress={() => quiet(startFresh($))} />}
         </Box>
       )}
       {serverRow}
@@ -1293,7 +1317,7 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
   // Room for the prompt in the turn flow title: total - 'f: ▾ TURN FLOW  ""' (19 cells) - time/cost on the right - padding. Under 8 cells it's left out.
   const flowPromptW = treeW - 19 - displayWidth(flowMeta) - 2
   // Row in the panel where the view box (turn flow, walk) title sits: header 1 + top row or tab row + view row 1 + settings screen
-  const viewTop = (1 + topH + 1) + settingsRows
+  const viewTop = 1 + topH + 1
   // Below-cards for the flow chart header rows (title, advice, files, share band) are drawn in the panel-end overlays, on top of lower rows and running cards.
   // Desktop can't place them from the panel top: its borders are thin lines, its top boxes fit their content and its gaps aren't rows, so the panel-relative
   // row count lands several rows low. There they go in flowCards (walkCards for the walk view), drawn as the view box's last children, with tops counted
@@ -1465,11 +1489,10 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
                     const cardW = Math.min(spanW, Math.max(30, spanW - colLeft))
                     const cardLeft = Math.max(0, Math.min(colLeft, spanW - cardW))
                     // Vertical position in the panel: title row, top row, margin, TURN FLOW title, node box (4 rows), branch order
-                    // When the settings screen is open, shift down by its height (SETTINGS_H).
                     // Desktop rows above the branch list aren't whole rows (thin borders, fitted boxes, gaps), so the panel-relative count lands low there.
                     // It draws the card as a child of this column's branch list box instead, placed from that box's top (intent row, +N row, then the
                     // branch rows) and its left edge. Positioned, it paints over the branch rows of the columns to its right and the rows below the flow chart.
-                    const flowTop = (1 + topH + 2) + settingsRows
+                    const flowTop = 1 + topH + 2
                     const inList = (anyIntent ? 1 : 0) + rowAt + 1 + (more > 0 ? 1 : 0)
                     const card = (
                       <Box
@@ -2394,11 +2417,10 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
           so as text color on the inverted header they have low contrast. inverseText on a chip background reads on both themes. */}
       {/* The header is fixed to one row. If width runs short, it doesn't wrap; the end of the session summary is cut. */}
       {/* On desktop the default buttons are taller than a row, so the height isn't fixed; it centers vertically and keeps a gap from the first box below. */}
-      {stickTop > 0 ? <Box key="head-space" height={1} /> : header}
+      {desk ? <Box key="head-space" height={DESK_HEAD_H} /> : stickTop > 0 ? <Box key="head-space" height={1} /> : header}
       {/* On desktop box borders are thin and boxes look stuck together, so a gap is added between boxes (instead of the session map's marginTop). */}
       <Box flexDirection="column" gap={e.surface === 'desktop' ? 'sm' : 0}>
 
-      {sOpen && desk && settingsBox}
       {topRow}
       {viewBar}
       {e.surface === 'desktop'
@@ -2478,10 +2500,13 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
         ])}
       </Box>
       </Box>
-      {stickTop > 0 && <Box key="head-sticky" position="absolute" top={stickTop} left={0} width={cols} flexDirection="column">{header}</Box>}
-      {/* Terminal settings screen: an overlay right under the header at the top of the visible window, wherever the panel is scrolled.
-          It's painted with a background so the rows under it don't show through, and nothing below moves when it opens or closes. */}
-      {sOpen && !desk && <Box key="settings-overlay" position="absolute" top={stickTop + 1} left={0} width={cols} flexDirection="column" backgroundColor={tint('#1e2030', C.server)}>{settingsBox}</Box>}
+      {/* Settings screen: an overlay right under the header at the top of the visible window, wherever the panel is scrolled.
+          It's painted with a background so the rows under it don't show through, and nothing below moves when it opens or closes.
+          Desktop tints are translucent, so an opaque base (DESK_BASE) sits under the tint. Drawn before the header so a tall header covers it, never the reverse. */}
+      {sOpen && <Box key="settings-overlay" position="absolute" top={stickTop + (desk ? DESK_HEAD_H : 1)} left={0} width={cols} flexDirection="column" backgroundColor={desk ? DESK_BASE : tint('#1e2030', C.server)}>
+        {desk ? <Box flexDirection="column" backgroundColor={tint('#1e2030', C.server)}>{settingsBox}</Box> : settingsBox}
+      </Box>}
+      {(desk || stickTop > 0) && <Box key="head-sticky" position="absolute" top={stickTop} left={0} width={cols} flexDirection="column" {...(desk ? { height: DESK_HEAD_H, backgroundColor: DESK_BASE } : {})}>{header}</Box>}
       {headTips}
       {eff.view === 'avatar' ? officeCards : overlays}
     </Box>
@@ -2522,18 +2547,27 @@ async function settingsScreen($: EngineInterface, e: RenderInput<'Pane' | 'Above
   const movePanel = () => movePanelOf($, eff)
   // The default position is right. If it was at the bottom, move it right.
   const resetPrefs = () => quiet(eff.position === base.position ? savePrefs($, {}, true) : closePane($).then(() => savePrefs($, {}, true)).then(() => openPane($)))
-  const stepper = (key: 'ctxAlertPercent' | 'turnCostAlertUsd' | 'stallSeconds', step: number, max: number, show: (v: number) => string) => (
+  // The value between - and + reads as before (bold, 'off' for 0) and can be typed into: a surface module (numfield.tsx) draws it at the value's own size,
+  // a click focuses it and Enter posts the number, saved clamped by the ui.message hook (clampPref). Without Client (no such element), the plain value.
+  const ui = $.ui.resolve(e)
+  const Client = 'Client' in ui ? ui.Client : undefined
+  const editBg = e.surface === 'desktop' ? `${C.agent}33` : '#2a2f45'
+  const drop = (await read($, numDrop)) + escDrops
+  const field = (key: NumKey, value: number, show: string) => Client
+    ? <Client key={`num-${key}`} module="./numfield.tsx" props={{ setting: key, text: show, value: String(value), edit: editBg, cursor: C.agent, drop }} />
+    : <Text bold>{show}</Text>
+  const stepper = (key: keyof typeof NUM_MAX, step: number, show: (v: number) => string) => (
     <Box gap={1}>
-      <Button key={`dec-${key}`} hover={hov(`dec-${key}`)} plain label="−" onPress={setPref({ [key]: Math.max(0, eff[key] - step) })} />
-      <Text bold>{eff[key] === 0 ? 'off' : show(eff[key])}</Text>
-      <Button key={`inc-${key}`} hover={hov(`inc-${key}`)} plain label="+" onPress={setPref({ [key]: Math.min(max, eff[key] + step) })} />
+      <Button key={`dec-${key}`} hover={hov(`dec-${key}`)} plain label="−" onPress={setPref({ [key]: clampPref(key, eff[key] - step) })} />
+      {field(key, eff[key], eff[key] === 0 ? 'off' : show(eff[key]))}
+      <Button key={`inc-${key}`} hover={hov(`inc-${key}`)} plain label="+" onPress={setPref({ [key]: clampPref(key, eff[key] + step) })} />
     </Box>
   )
   // Rows for a scrolling box: 1 to 10, no 'off'
   const rowStepper = (key: 'sessionRows' | 'tabRows') => (
     <Box gap={1}>
       <Button key={`dec-${key}`} hover={hov(`dec-${key}`)} plain label="−" onPress={setPref({ [key]: rowsOf(eff[key] - 1) })} />
-      <Text bold>{rowsOf(eff[key])}</Text>
+      {field(key, rowsOf(eff[key]), String(rowsOf(eff[key])))}
       <Button key={`inc-${key}`} hover={hov(`inc-${key}`)} plain label="+" onPress={setPref({ [key]: rowsOf(eff[key] + 1) })} />
     </Box>
   )
@@ -2560,9 +2594,10 @@ async function settingsScreen($: EngineInterface, e: RenderInput<'Pane' | 'Above
     row('Panel position', (
         <Button key="set-position" hover={hov('set-position')} variant="primary" label={eff.position === 'bottom' ? 'Bottom (above prompt)' : 'Right'} onPress={movePanel} />
       )),
-    row('Context alert', stepper('ctxAlertPercent', 10, 100, v => `${v}%`)),
-    row('Turn cost alert', stepper('turnCostAlertUsd', 1, 50, v => `$${v}`)),
-    row('Stall threshold', stepper('stallSeconds', 30, 600, v => `${v}s`)),
+    row('Fresh session at', stepper('freshAtK', 50, v => `${v}k`)),
+    row('Context alert', stepper('ctxAlertPercent', 10, v => `${v}%`)),
+    row('Turn cost alert', stepper('turnCostAlertUsd', 1, v => `$${v}`)),
+    row('Stall threshold', stepper('stallSeconds', 30, v => `${v}s`)),
     row('Open sessions rows', rowStepper('sessionRows')),
     row('Browser tabs rows', rowStepper('tabRows')),
   ]
@@ -2617,6 +2652,7 @@ export const register: Register = (on, options) => {
     sessionRows: rowsOf(options.sessionRows),
     tabRows: rowsOf(options.tabRows),
     freshMode: 'ask',
+    freshAtK: num(options.freshAtK, 200),
     icon: 'auto',
   }
   cur = { ...base }
@@ -2625,12 +2661,16 @@ export const register: Register = (on, options) => {
     await decidePixelTerm($)
     await $.command.register({ name: 'goyangi', description: 'Open the Goyangi panel' })
     // A fresh session started by Goyangi: its first prompt points at the handoff note (a pending note older than 10 minutes is dropped)
-    const pending = (e as { source?: string }).source === 'clear' ? await $.store.get('fresh').catch(() => undefined) as { file?: string; prev?: string; at?: number } | null | undefined : undefined
+    const pending = (e as { source?: string }).source === 'clear' ? await $.store.get('fresh').catch(() => undefined) as { file?: string; prev?: string; at?: number; wait?: boolean; then?: string } | null | undefined : undefined
     if (pending) {
       await $.store.set('fresh', null)
       await update($, freshStage, () => '')
-      if (pending.file && Date.now() - (pending.at ?? 0) < 600_000) {
-        const text = `Continue the work from the previous session. Read the handoff note at ${pending.file} first, then carry on from its next step. The previous session is ${pending.prev} (claude --resume ${pending.prev} to look back at it).`
+      // An Auto note the person cleared away before typing (/clear by hand) starts nothing on its own
+      if (pending.file && Date.now() - (pending.at ?? 0) < 600_000 && (!pending.wait || pending.then)) {
+        const back = `The previous session is ${pending.prev} (claude --resume ${pending.prev} to look back at it).`
+        const text = pending.then
+          ? `Continue the work from the previous session. Read the handoff note at ${pending.file} first, then answer the person's message below, which they sent to the previous session. ${back}\n\n${pending.then}`
+          : `Continue the work from the previous session. Read the handoff note at ${pending.file} first, then carry on from its next step. ${back}`
         await $.clock.after(300, () => quiet($.prompt.submit({ text })))
       }
     }
@@ -2701,6 +2741,15 @@ export const register: Register = (on, options) => {
   // /goyangi opens the panel fresh: it lifts minimize and all section folds so every section is expanded.
   // A pull request from another session's Goyangi (state.ts pullRequest) is answered here with this session's handoff, and dropped before it reaches the model
   on('prompt.submit', async ($, e, next) => {
+    // Auto fresh session with the note ready: the person's prompt is held back and goes to the new session, which /clear starts now
+    if (e.origin.kind === 'person' && cur.freshMode !== 'off' && (await read($, freshStage)) === 'ready') {
+      const rec = await $.store.get('fresh').catch(() => undefined) as { file?: string } | null | undefined
+      if (rec?.file) {
+        await $.store.set('fresh', { ...rec, then: e.text, at: Date.now() })
+        await clearToFresh($)
+        return { drop: 'Goyangi carries this prompt into a fresh session' }
+      }
+    }
     const peer = e.origin.kind === 'peer' || e.origin.kind === 'peer-send-message'
     const sender = peer ? handoffFrom(e.text) : undefined
     if (sender !== undefined) $.ui.toast(`Goyangi · Received a handoff from ${sender || 'another session'}`)
@@ -2963,9 +3012,13 @@ export const register: Register = (on, options) => {
           if (!wrote) await $.fs.write(freshFile, await myHandoff($))
           return clearToFresh($)
         }
-        if (stage || cur.freshMode !== 'auto' || cur.ctxAlertPercent <= 0) return
-        const pct = (await $.session.usage().catch(() => undefined))?.context.percent ?? 0
-        if (pct >= cur.ctxAlertPercent) await $.clock.after(300, () => quiet(startFresh($)))
+        if (stage === 'preparing') {
+          const wrote = await $.fs.read(freshFile).then(t => typeof t === 'string' && t.trim().length > 0, () => false)
+          if (!wrote) await $.fs.write(freshFile, await myHandoff($))
+          return update($, freshStage, () => 'ready')
+        }
+        if (stage || cur.freshMode !== 'auto') return
+        if (freshDue((await $.session.usage().catch(() => undefined))?.context, cur.freshAtK)) await $.clock.after(300, () => quiet(startFresh($, true)))
       }))
       refreshCtx($)
       checkAdvice($)
@@ -2978,8 +3031,31 @@ export const register: Register = (on, options) => {
 
   // Move the session map or session log window to where the scrollbar (scrollbar.tsx) was dragged.
   // The whole-panel bar ('pane') asks the engine to scroll, and the ui.scroll that comes back from the plugin carries the dragged offset.
+  // Terminal Escape while a settings number is edited: the first only hands the keys back to the pane, the second is the pane's close.
+  // That close drops the edit and keeps the pane open (answering without next keeps it)
+  on('ui.close', async ($, e, next) => {
+    if (e.id !== PANE || e.origin.kind !== 'person' || editAt === undefined) return next(e)
+    editAt = undefined
+    await update($, numDrop, v => v + 1)
+    return { value: undefined }
+  })
+  on('ui.focus', async ($, e, next) => {
+    if (editAt !== undefined && Date.now() - editAt > FOCUS_GRACE_MS) {
+      editAt = undefined
+      await update($, numDrop, v => v + 1)
+    }
+    return next(e)
+  })
   on('ui.message', ($, e) => {
-    const d = e.data as { list?: unknown; from?: unknown }
+    const d = e.data as { list?: unknown; from?: unknown; setting?: unknown; value?: unknown; editing?: unknown }
+    if (typeof d?.editing === 'boolean') { editAt = d.editing ? Date.now() : undefined; return {} }
+    // A value typed into a settings number (numfield.tsx): saved clamped; text that isn't a number changes nothing
+    if (typeof d?.setting === 'string' && (d.setting in NUM_MAX || d.setting === 'sessionRows' || d.setting === 'tabRows')) {
+      editAt = undefined
+      const v = Number(d.value)
+      if (typeof d.value === 'string' && d.value.trim() !== '' && Number.isFinite(v)) quiet(savePrefs($, { [d.setting as NumKey]: clampPref(d.setting as NumKey, v) }))
+      return {}
+    }
     if (d?.list === 'pane' && typeof d.from === 'number') {
       paneSeek.set(`${e.component}:${e.requestId}`, d.from)
       quiet($.ui.scroll({ to: 'start', in: e.requestId }))

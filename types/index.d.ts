@@ -73,7 +73,7 @@ export type SessionTurn = { id: string; prompt: string; startedAt: number; ended
 // position: panel position. right is a split to the right of the conversation (Pane), bottom the area above the prompt (AbovePrompt)
 // character: the walk view's character (cat, dog).
 // view: what to draw in the turn flow's place. default is the flow chart, avatar the walk where pixel characters run along the steps (the value name is kept to match saved settings)
-export type Prefs = { autoOpen?: boolean; ctxAlertPercent?: number; turnCostAlertUsd?: number; stallSeconds?: number; position?: 'right' | 'bottom'; autoUpdate?: boolean; view?: 'default' | 'avatar'; character?: 'cat' | 'dog'; sessionRows?: number; tabRows?: number; freshMode?: 'off' | 'ask' | 'auto'; icon?: 'auto' | 'nerd' | 'unicode' | 'ascii' }
+export type Prefs = { autoOpen?: boolean; ctxAlertPercent?: number; turnCostAlertUsd?: number; stallSeconds?: number; position?: 'right' | 'bottom'; autoUpdate?: boolean; view?: 'default' | 'avatar'; character?: 'cat' | 'dog'; sessionRows?: number; tabRows?: number; freshMode?: 'off' | 'ask' | 'auto'; freshAtK?: number; icon?: 'auto' | 'nerd' | 'unicode' | 'ascii' }
 // An open Claude Code session on this machine (from `claude agents --json`), and the list the panel shows with this session's id
 // host: the app the session runs in (Claude for the desktop app, cmux, Ghostty, iTerm2, ...), read from its process's ancestors; pid locates it
 export type Peer = { sessionId: string; name: string; cwd: string; status: string; kind: string; pid?: number; host?: string; num?: number }
@@ -129,6 +129,6 @@ export type SessionRecord = { id: string; startedAt: number; updatedAt: number; 
 
 declare module 'claude-code' {
   interface PluginState {
-    'goyangi': { tree: Tree; tick: number; fold: Fold; logEnd: number; mapEnd: number; flowPage: number; questPage: number; focus: string; kidsFolded: string; viewTurn: string; replayFrom: number; mapTall: boolean; mapBasis: string; tipsOpen: boolean; logAll: boolean; archive: Record<string, TurnSnap>; prefs: Prefs; settingsOpen: boolean; bottomOpen: boolean; peers: Peers; tabs: Tab[]; peerFrom: number; tabFrom: number; icons: Record<string, AppIcon>; freshStage: string; pulls: { wait: Record<string, string>; back: Record<string, string> }; nums: Record<string, number>; numsOf: string }
+    'goyangi': { tree: Tree; tick: number; fold: Fold; logEnd: number; mapEnd: number; flowPage: number; questPage: number; focus: string; kidsFolded: string; viewTurn: string; replayFrom: number; mapTall: boolean; mapBasis: string; tipsOpen: boolean; logAll: boolean; archive: Record<string, TurnSnap>; prefs: Prefs; settingsOpen: boolean; numDrop: number; bottomOpen: boolean; peers: Peers; tabs: Tab[]; peerFrom: number; tabFrom: number; icons: Record<string, AppIcon>; freshStage: string; pulls: { wait: Record<string, string>; back: Record<string, string> }; nums: Record<string, number>; numsOf: string }
   }
 }

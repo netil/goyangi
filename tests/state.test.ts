@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { iconKind, REFRESH_ICON, faceKeep, octantTerminal, pickBrowsers, lineDelta, addDiff, patchOrange, emptyTree, patchLoop, describeAgent, toolStart, toolEnd, ended, visibleAgents, fit, newLoop, flowColumns, ellipsis, branchLines, joinLines, arrowFrame, shouldCheckUpdate, updatedVersion, UPDATE_EVERY_MS, deskOf, dotRows, dotSvg, dotScene, flagSvg, dotRgba, base64, pixelTerminal, sprite, prop, stations, miniTrack, petMood, petPixels, overlay, replayAt, costMark, parsePeers, parseAgents, cmuxTarget, parseTabs, findTabs, stick, handoffLabel, appOf, hostTag, handoffNote, pullRequest, pullFrom, screenState } from '../hooks/state'
+import { look, freshDue, iconKind, REFRESH_ICON, faceKeep, octantTerminal, pickBrowsers, lineDelta, addDiff, patchOrange, emptyTree, patchLoop, describeAgent, toolStart, toolEnd, ended, visibleAgents, fit, newLoop, flowColumns, ellipsis, branchLines, joinLines, arrowFrame, shouldCheckUpdate, updatedVersion, UPDATE_EVERY_MS, deskOf, dotRows, dotSvg, dotScene, flagSvg, dotRgba, base64, pixelTerminal, sprite, prop, stations, miniTrack, petMood, petPixels, overlay, replayAt, costMark, parsePeers, parseAgents, cmuxTarget, parseTabs, findTabs, stick, handoffLabel, appOf, hostTag, handoffNote, pullRequest, pullFrom, screenState } from '../hooks/state'
 
 test('parallel tools: stays tool while others still run after one ends', async () => {
   let l = toolStart(toolStart(newLoop('m', 'main'), 'Bash a'), 'Bash b')
@@ -415,6 +415,9 @@ test('dotRows draws quadrant blocks for terminals without octant glyphs, and oct
   // another terminal started from Ghostty keeps GHOSTTY_RESOURCES_DIR; a multiplexer inside Ghostty (herdr) still reaches Ghostty's glyphs
   expect(octantTerminal({ TERM: 'xterm-256color', TERM_PROGRAM: 'vscode', GHOSTTY_RESOURCES_DIR: '/x' })).toBe(false)
   expect(octantTerminal({ TERM: 'xterm-256color', TERM_PROGRAM: 'herdr', GHOSTTY_RESOURCES_DIR: '/x' })).toBe(true)
+  // octants: the cat's eyes (2 of a cell's 8 pixels) keep their color instead of losing the tie with the empty pixels
+  for (const pose of ['work', 'run', 'think'] as const)
+    expect(dotRows(sprite(pose, 0, 'cat'), look('#93c5fd')).flat().some(s => s.fg === '#0b1020' || s.bg === '#0b1020')).toBe(true)
 })
 
 test('faceKeep: each eye and the nose are one quadrant, the nose below the eyes, and a crossed eye keeps the stroke in the working pose\'s row', async () => {
@@ -439,4 +442,13 @@ test('iconKind: a Nerd Font symbol where the terminal ships its own symbols, the
   expect(iconKind('auto', { TERM: 'linux', LANG: 'C' })).toBe('ascii')
   expect(iconKind('ascii', { TERM: 'xterm-ghostty' })).toBe('ascii')
   expect(REFRESH_ICON).toEqual({ nerd: '\uEB37', unicode: '↺', ascii: 'R' })
+})
+
+test('freshDue: a token point that means the same size in any window, and 95% of the window as the last stop', async () => {
+  expect(freshDue({ percent: 20, window: 1_000_000 }, 200)).toBe(true)
+  expect(freshDue({ percent: 19, window: 1_000_000 }, 200)).toBe(false)
+  expect(freshDue({ percent: 85, window: 200_000 }, 200)).toBe(false)
+  expect(freshDue({ percent: 95, window: 200_000 }, 200)).toBe(true)
+  expect(freshDue({ percent: 50, window: 1_000_000 }, 0)).toBe(false)
+  expect(freshDue(undefined, 200)).toBe(false)
 })
