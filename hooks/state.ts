@@ -909,8 +909,9 @@ export function iconKind(pref: 'auto' | IconKind, env: { TERM?: string; TERM_PRO
   return !locale || /utf-?8/i.test(locale) ? 'unicode' : 'ascii'
 }
 // Multiplexers (tmux, zellij, screen, herdr) don't pass the image protocol through, so a kitty window running one draws nothing where the image goes.
-export function pixelTerminal(env: { TERM?: string; TERM_PROGRAM?: string; KITTY_WINDOW_ID?: string; TMUX?: string; ZELLIJ?: string; STY?: string }): boolean {
-  if (env.TMUX || env.ZELLIJ || env.STY || /^(tmux|herdr)$/i.test(env.TERM_PROGRAM ?? '')) return false
+// herdr is found by HERDR_ENV too: not every version sets TERM_PROGRAM, and then the outer terminal's TERM_PROGRAM (ghostty) shows through.
+export function pixelTerminal(env: { TERM?: string; TERM_PROGRAM?: string; KITTY_WINDOW_ID?: string; TMUX?: string; ZELLIJ?: string; STY?: string; HERDR_ENV?: string }): boolean {
+  if (env.TMUX || env.ZELLIJ || env.STY || env.HERDR_ENV || /^(tmux|herdr)$/i.test(env.TERM_PROGRAM ?? '')) return false
   return /kitty|ghostty/i.test(env.TERM ?? '') || /ghostty/i.test(env.TERM_PROGRAM ?? '') || (ownVars(env) && !!env.KITTY_WINDOW_ID)
 }
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1.1 (2026-11-20)
+
+### Bug Fixes
+
+- The walk view character and the header's cat logo no longer come out blank (or as the letters "Go") in herdr versions that leave the outer Ghostty's `TERM_PROGRAM` in place: herdr is now also recognized by `HERDR_ENV`
+
 ## v1.1.0 (2026-11-17)
 
 ### Features

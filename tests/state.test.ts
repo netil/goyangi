@@ -176,6 +176,8 @@ test('pixelTerminal: only kitty and Ghostty draw pixels, and inside tmux charact
   expect(pixelTerminal({ TERM: 'xterm-256color', TERM_PROGRAM: 'vscode', KITTY_WINDOW_ID: '1' })).toBe(false)
   expect(pixelTerminal({ TERM: 'xterm-256color', KITTY_WINDOW_ID: '1', ZELLIJ: '0' })).toBe(false)
   expect(pixelTerminal({ TERM: 'xterm-256color', TERM_PROGRAM: 'herdr', KITTY_WINDOW_ID: '1' })).toBe(false)
+  // a herdr that leaves the outer Ghostty's TERM_PROGRAM in place is still found by HERDR_ENV
+  expect(pixelTerminal({ TERM: 'xterm-ghostty', TERM_PROGRAM: 'ghostty', HERDR_ENV: '1' })).toBe(false)
 })
 
 test('flagSvg: pole and numbered cloth, with an end triangle for two characters or fewer', async () => {
