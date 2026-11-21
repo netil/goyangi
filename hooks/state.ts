@@ -769,8 +769,8 @@ export function faceKeep(grid: readonly string[], ref: readonly string[] = grid,
   const eyeCols = grid.flatMap(r => [...r].flatMap((c, x) => (c === 'E' ? [x] : [])))
   const [left, right] = [Math.min(...eyeCols), Math.max(...eyeCols)]
   grid.forEach((r, y) => [...r].forEach((c, x) => { if (c === 'E' && x !== left && x !== right) skip.add(`${x},${y}`) }))
-  const isFace = (x: number, y: number) => { const c = grid[y]?.[x]; return (c === 'E' && (x === left || x === right)) || (c === 'D' && x >= 10 && x <= 13 && y <= 9) ? c : undefined }
-  for (const letter of ['E', 'D']) for (let x = 0; x < 16; x++) for (let y = 0; y < grid.length; y++) {
+  const isFace = (x: number, y: number) => { const c = grid[y]?.[x]; return (c === 'E' && (x === left || x === right)) || ((c === 'D' || c === 'K') && x >= 10 && x <= 13 && y <= 9) ? c : undefined }
+  for (const letter of ['E', 'D', 'K']) for (let x = 0; x < 16; x++) for (let y = 0; y < grid.length; y++) {
     const c = isFace(x, y)
     if (c !== letter || isFace(x, y - 1) === c) continue
     let end = y
@@ -787,16 +787,23 @@ export function faceKeep(grid: readonly string[], ref: readonly string[] = grid,
     }
     // The quadrant holding the run's last pixel row; a nose that would share a row of quadrants with the eyes goes one row down, since a cell has room for two colors only
     let qr = end >> 1
-    if (c === 'D' && [...quads].some(([k, v]) => v === 'E' && Number(k.split(',')[1]) === qr)) qr++
+    if (c !== 'E' && [...quads].some(([k, v]) => v === 'E' && Number(k.split(',')[1]) === qr)) qr++
     quads.set(`${x},${qr}`, c)
   }
+  // A blink narrows or closes the eyes inside the quadrant row the open eyes fill, and a quadrant has no thinner eyelid, so the eyes are left out (body color).
+  // Asleep, the closed eyes sit a row of quadrants lower and stay. Tired eyes (V over the lower half) still count as open.
+  const eyePx = (g: readonly string[]) => g.join('').replace(/[^EV]/g, '').length
+  const refCols = new Set(ref.flatMap(r => [...r].flatMap((c, x) => (c === 'E' ? [x] : []))))
+  const at = (k: string) => k.split(',').map(Number) as [number, number]
+  const blink = eyePx(grid) < eyePx(ref) && ![...quads].some(([k, v]) => v === 'D' && refCols.has(at(k)[0]) && !wanted.has(at(k)[1]))
+  if (blink) for (const [k] of [...quads]) if (refCols.has(at(k)[0])) quads.delete(k)
   if (layout) {
     const eyes = [...quads].filter(([, v]) => v === 'E').map(([k]) => Number(k.split(',')[1]))
-    const dark = [...quads].filter(([, v]) => v === 'D').map(([k]) => Number(k.split(',')[1]))
+    const darkQ = [...quads].filter(([, v]) => v === 'D' || v === 'K'), dark = darkQ.map(([k]) => Number(k.split(',')[1]))
     quads.clear()
-    if (eyes.length) {
-      for (const x of layout.eyes) quads.set(`${x},${eyes[0]}`, 'E')
-      if (dark.length) quads.set(`${layout.nose},${Math.min(...dark)}`, 'D')
+    if (eyes.length || blink) {
+      for (const x of layout.eyes) if (eyes.length) quads.set(`${x},${eyes[0]}`, 'E')
+      if (dark.length) quads.set(`${layout.nose},${Math.min(...dark)}`, darkQ.some(([, v]) => v === 'K') ? 'K' : 'D')
     } else if (dark.length) {
       // asleep: closed eyes in the first row of dark quadrants, the nose one row below
       const r = Math.min(...dark)
@@ -958,9 +965,10 @@ const shade = (hex: string) => `#${[1, 3, 5].map(i => Math.round(parseInt(hex.sl
 
 // Character pixels (16×16 = 8 cells × 4 rows), facing right, picked in the settings (character):
 // Blocky pixel pets facing right, with front-facing heads. L body (character color), D darker body (grey patches, nose),
-// O orange (patches, dog ears), Y yellow (dog collar), E dark (eyes), B brown (paw tips), N pink (tongue).
+// O orange (patches, dog ears), Y yellow (dog collar), E dark (eyes), K the dog's nose (eye-dark, so it shares the eyes' cells), B brown (paw tips), N pink (tongue).
+// A terminal cell (2 × 4 pixels) holds two colors, so every cell of every pose uses at most two (tests check it): legs and paws sit on cell edges.
 // cat: a calico cat with pointed ears, a raised tail, and four legs (default); dog: a dog with long orange ears, a collar, an upright tail, and four legs.
-// Each pose alternates its frames: run trots and wags, think blinks, work wags, moves the ears, and sticks the tongue out, fail shows one X over the eyes (the renderer turns the body red),
+// Each pose alternates its frames: run trots and wags, think blinks, work wags, moves the ears, and meows with eyes shut and the tongue out, fail shows one X over the eyes (the renderer turns the body red),
 // sleep lies down on folded legs with eyes closed and the tail tip rising and falling.
 // Orange patches (and the dog's ears) on a yellow-to-amber body, like the amber subagent colors, turn deep orange so they still stand out.
 export function patchOrange(body: string): string {
@@ -971,7 +979,7 @@ export function patchOrange(body: string): string {
 }
 
 // A pet's colors from its body color: shaded patches (D), orange patches (O), and the shared eyes, red, yellow, white, brown paws, pink tongue, and purple dark circles
-export const look = (body: string) => ({ L: body, D: shade(body), O: patchOrange(body), E: '#0b1020', R: '#ef4444', Y: '#fde047', W: '#e5e7eb', B: '#8b5a2b', N: '#f472b6', V: '#7e5bab' })
+export const look = (body: string) => ({ L: body, D: shade(body), O: patchOrange(body), E: '#0b1020', K: '#0b1020', R: '#ef4444', Y: '#fde047', W: '#e5e7eb', B: '#8b5a2b', N: '#f472b6', V: '#7e5bab' })
 export type Character = 'cat' | 'dog'
 export const CHARACTERS: readonly Character[] = ['cat', 'dog']
 // A saved character that no longer exists (robot, dino from earlier versions) falls back to the cat.
@@ -979,44 +987,44 @@ export const characterOf = (c?: string): Character => (CHARACTERS.includes(c as 
 const ART: Record<Character, Record<Pose, readonly (readonly string[])[]>> = {
   cat: {
     run: [
-      ['................', '................', '................', '..O......O.....D', '.L.......OO...DD', '.L.......OOLLLDD', '.L.......OLELELD', '.L.......OLELELD', '.L.......LLLDLLL', '.LLLDDDDLLLLLLLL', '.LLLDDDDLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LL.LL....LL.LL.', '.LL.BB....LL.BB.', '.BB.......BB....'],
-      ['................', '................', '................', '.O.......O.....D', 'L........OO...DD', '.L.......OOLLLDD', '.L.......OLELELD', '.L.......OLELELD', '.L.......LLLDLLL', '.LLLDDDDLLLLLLLL', '.LLLDDDDLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LL.LL....LL.LL.', '.BB.LL....BB.LL.', '....BB.......BB.'],
+      ['................', '................', '................', '..O......O.....D', '.L.......OLLLLDD', '.L.......OLLLLDD', '.L.......OLELELD', '.L.......OLELELD', '.L.......LLLDLLL', '.LLLDDDDLLLLLLLL', '.LLLDDDDLLLLLLLL', '.LLLDDDDLLLLLLLL', '.LLLLLLLLLLLLLLL', '..LL..LL..LL..LL', '..LL..LL..LL..LL', '..BB......BB....'],
+      ['................', '................', '................', '.O.......O.....D', 'L........OLLLLDD', '.L.......OLLLLDD', '.L.......OLELELD', '.L.......OLELELD', '.L.......LLLDLLL', '.LLLDDDDLLLLLLLL', '.LLLDDDDLLLLLLLL', '.LLLDDDDLLLLLLLL', '.LLLLLLLLLLLLLLL', '..LL..LL..LL..LL', '..LL..LL..LL..LL', '......BB......BB'],
     ],
     think: [
-      ['................', '................', '................', '..O......O.....D', '.L.......OO...DD', '.L.......OOLLLDD', '.L.......OLELELD', '.L.......OLELELD', '.L.......LLLDLLL', '.LLLDDDDLLLLLLLL', '.LLLDDDDLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LL.LL....LL.LL.', '.LL.LL....LL.LL.', '.BB.BB....BB.BB.'],
-      ['................', '................', '................', '..O......O.....D', '.L.......OO...DD', '.L.......OOLLLDD', '.L.......OLLLLLD', '.L.......OLDLDLD', '.L.......LLLDLLL', '.LLLDDDDLLLLLLLL', '.LLLDDDDLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LL.LL....LL.LL.', '.LL.LL....LL.LL.', '.BB.BB....BB.BB.'],
+      ['................', '................', '................', '..O......O.....D', '.L.......OLLLLDD', '.L.......OLLLLDD', '.L.......OLELELD', '.L.......OLELELD', '.L.......LLLDLLL', '.LLLDDDDLLLLLLLL', '.LLLDDDDLLLLLLLL', '.LLLDDDDLLLLLLLL', '.LLLLLLLLLLLLLLL', '..LL..LL..LL..LL', '..LL..LL..LL..LL', '..BB..BB..BB..BB'],
+      ['................', '................', '................', '..O......O.....D', '.L.......OLLLLDD', '.L.......OLLLLDD', '.L.......OLLLLLD', '.L.......OLDLDLD', '.L.......LLLDLLL', '.LLLDDDDLLLLLLLL', '.LLLDDDDLLLLLLLL', '.LLLDDDDLLLLLLLL', '.LLLLLLLLLLLLLLL', '..LL..LL..LL..LL', '..LL..LL..LL..LL', '..BB..BB..BB..BB'],
     ],
     work: [
-      ['................', '................', '................', '..O......O.....D', '.L.......OO...DD', '.L.......OOLLLDD', '.L.......OLELELD', '.L.......OLELELD', '.L.......LLLDLLL', '.LLLDDDDLLLLLLLL', '.LLLDDDDLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LL.LL....LL.LL.', '.LL.LL....LL.LL.', '.BB.BB....BB.BB.'],
-      ['................', '................', '................', '.O.......O......', 'L........OO....D', '.L.......OOLLLDD', '.L.......OLELELD', '.L.......OLELELD', '.L.......LLLDLLL', '.LLLDDDDLLLLNLLL', '.LLLDDDDLLLLNLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LL.LL....LL.LL.', '.LL.LL....LL.LL.', '.BB.BB....BB.BB.'],
+      ['................', '................', '................', '..O......O.....D', '.L.......OLLLLDD', '.L.......OLLLLDD', '.L.......OLELELD', '.L.......OLELELD', '.L.......LLLDLLL', '.LLLDDDDLLLLLLLL', '.LLLDDDDLLLLLLLL', '.LLLDDDDLLLLLLLL', '.LLLLLLLLLLLLLLL', '..LL..LL..LL..LL', '..LL..LL..LL..LL', '..BB..BB..BB..BB'],
+      ['................', '................', '................', '.O.......O......', 'L........OLLLLDD', '.L.......OLLLLDD', '.L.......OLDLDLD', '.L.......OLLDLLD', '.L.......LLLNLLL', '.LLLDDDDLLLLNLLL', '.LLLDDDDLLLLLLLL', '.LLLDDDDLLLLLLLL', '.LLLLLLLLLLLLLLL', '..LL..LL..LL..LL', '..LL..LL..LL..LL', '..BB..BB..BB..BB'],
     ],
     fail: [
-      ['................', '................', '................', '..O......O.....D', '.L.......OO...DD', '.L.......OOLLLDD', '.L.......OLELELD', '.L.......OLLELLD', '.L.......LLEDELL', '.LLLDDDDLLLLLLLL', '.LLLDDDDLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LL.LL....LL.LL.', '.LL.LL....LL.LL.', '.BB.BB....BB.BB.'],
+      ['................', '................', '................', '..O......O.....D', '.L.......OLLLLDD', '.L.......OLLLLDD', '.L.......OLELELD', '.L.......OLLELLD', '.L.......LLELELL', '.LLLDDDDLLLLLLLL', '.LLLDDDDLLLLLLLL', '.LLLDDDDLLLLLLLL', '.LLLLLLLLLLLLLLL', '..LL..LL..LL..LL', '..LL..LL..LL..LL', '..BB..BB..BB..BB'],
     ],
     sleep: [
-      ['................', '................', '................', '................', '................', '.........O.....D', '.........OO...DD', '.........OOLLLDD', '.........OLLLLLD', '.........OLDLDLD', '.........LLLDLLL', 'OLLLDDDDLLLLLLLL', '.LLLDDDDLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.BBBBB...BBBBBB.'],
-      ['................', '................', '................', '................', '................', '.........O.....D', '.........OO...DD', '.........OOLLLDD', '.........OLLLLLD', '.........OLDLDLD', 'O........LLLDLLL', '.LLLDDDDLLLLLLLL', '.LLLDDDDLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.BBBBB...BBBBBB.'],
+      ['................', '................', '................', '................', '................', '.........O.....D', '.........O....DD', '.........OLLLLDD', '.........LLLLLLD', '.........LLDLDLD', '.........LLLDLLL', 'OOLLDDDDLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '..BBBB..BBBBBB..'],
+      ['................', '................', '................', '................', '................', '.........O.....D', '.........O....DD', '.........OLLLLDD', '.........LLLLLLD', '.........LLDLDLD', 'O........LLLDLLL', '.OLLDDDDLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '..BBBB..BBBBBB..'],
     ],
   },
   dog: {
     run: [
-      ['................', '................', '................', '................', '..........LLLL..', '........OOELLEOO', '........OOELLEOO', '.L......OOLDDLOO', '.L......OOLLLLOO', '.LLLLLLLLOYYYYOL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LL.LL....LL.LL.', '.LL.BB....LL.BB.', '.BB.......BB....'],
-      ['................', '................', '................', '................', '..........LLLL..', '........OOELLEOO', '........OOELLEOO', 'L.......OOLDDLOO', '.L......OOLLLLOO', '.LLLLLLLLOYYYYOL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LL.LL....LL.LL.', '.BB.LL....BB.LL.', '....BB.......BB.'],
+      ['................', '................', '................', '................', '..........LLLL..', '........OOELLEOO', '........OOELLEOO', '.L......OOLKKLOO', '.L......OOLLLLOO', '.LLLLLLLLOYYYYOL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '..LL..LL..LL..LL', '..LL..LL..LL..LL', '..BB......BB....'],
+      ['................', '................', '................', '................', '..........LLLL..', '........OOELLEOO', '........OOELLEOO', 'L.......OOLKKLOO', '.L......OOLLLLOO', '.LLLLLLLLOYYYYOL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '..LL..LL..LL..LL', '..LL..LL..LL..LL', '......BB......BB'],
     ],
     think: [
-      ['................', '................', '................', '................', '..........LLLL..', '........OOELLEOO', '........OOELLEOO', '.L......OOLDDLOO', '.L......OOLLLLOO', '.LLLLLLLLOYYYYOL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LL.LL....LL.LL.', '.LL.LL....LL.LL.', '.BB.BB....BB.BB.'],
-      ['................', '................', '................', '................', '..........LLLL..', '........OOLLLLOO', '........OOELLEOO', '.L......OOLDDLOO', '.L......OOLLLLOO', '.LLLLLLLLOYYYYOL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LL.LL....LL.LL.', '.LL.LL....LL.LL.', '.BB.BB....BB.BB.'],
+      ['................', '................', '................', '................', '..........LLLL..', '........OOELLEOO', '........OOELLEOO', '.L......OOLKKLOO', '.L......OOLLLLOO', '.LLLLLLLLOYYYYOL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '..LL..LL..LL..LL', '..LL..LL..LL..LL', '..BB..BB..BB..BB'],
+      ['................', '................', '................', '................', '..........LLLL..', '........OOLLLLOO', '........OOELLEOO', '.L......OOLKKLOO', '.L......OOLLLLOO', '.LLLLLLLLOYYYYOL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '..LL..LL..LL..LL', '..LL..LL..LL..LL', '..BB..BB..BB..BB'],
     ],
     work: [
-      ['................', '................', '................', '................', '..........LLLL..', '........OOELLEOO', '........OOELLEOO', '.L......OOLDDLOO', '.L......OOLLLLOO', '.LLLLLLLLOYYYYOL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LL.LL....LL.LL.', '.LL.LL....LL.LL.', '.BB.BB....BB.BB.'],
-      ['................', '................', '................', '................', '........OOLLLLOO', '........OOELLEOO', '........OOELLEOO', 'L.......OOLDDLOO', '.L......OOLNNLOO', '.LLLLLLLLLYNNYLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LL.LL....LL.LL.', '.LL.LL....LL.LL.', '.BB.BB....BB.BB.'],
+      ['................', '................', '................', '................', '..........LLLL..', '........OOELLEOO', '........OOELLEOO', '.L......OOLKKLOO', '.L......OOLLLLOO', '.LLLLLLLLOYYYYOL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '..LL..LL..LL..LL', '..LL..LL..LL..LL', '..BB..BB..BB..BB'],
+      ['................', '................', '................', '................', '........OOLLLLOO', '........OOELLEOO', '........OOELLEOO', 'L.......OOLKKLOO', '.L......OOLNNLOO', '.LLLLLLLLLLNNLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '..LL..LL..LL..LL', '..LL..LL..LL..LL', '..BB..BB..BB..BB'],
     ],
     fail: [
-      ['................', '................', '................', '................', '..........LLLL..', '........OOELLEOO', '........OOLEELOO', '.L......OOEDDEOO', '.L......OOLLLLOO', '.LLLLLLLLOYYYYOL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LL.LL....LL.LL.', '.LL.LL....LL.LL.', '.BB.BB....BB.BB.'],
+      ['................', '................', '................', '................', '..........LLLL..', '........OOELLEOO', '........OOLEELOO', '.L......OOELLEOO', '.L......OOLLLLOO', '.LLLLLLLLOYYYYOL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '..LL..LL..LL..LL', '..LL..LL..LL..LL', '..BB..BB..BB..BB'],
     ],
     sleep: [
-      ['................', '................', '................', '................', '................', '................', '..........LLLL..', '........OOLLLLOO', '........OODLLDOO', '........OOLDDLOO', '........OOLLLLOO', 'LLLLLLLLLOYYYYOL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.BBBB....BBBBBB.'],
-      ['................', '................', '................', '................', '................', '................', '..........LLLL..', '........OOLLLLOO', '........OODLLDOO', '........OOLDDLOO', 'L.......OOLLLLOO', '.LLLLLLLLOYYYYOL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.BBBB....BBBBBB.'],
+      ['................', '................', '................', '................', '................', '................', '..........LLLL..', '........OOLLLLOO', '........OODLLDOO', '........OOLDDLOO', '........OOLLLLOO', 'LLLLLLLLLOLLLLOL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '..BBBB..BBBBBB..'],
+      ['................', '................', '................', '................', '................', '................', '..........LLLL..', '........OOLLLLOO', '........OODLLDOO', '........OOLDDLOO', 'L.......OOLLLLOO', '.LLLLLLLLOLLLLOL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '.LLLLLLLLLLLLLLL', '..BBBB..BBBBBB..'],
     ],
   },
 }

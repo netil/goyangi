@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.1.2 (2026-11-21)
+
+### Bug Fixes
+
+- The cat and dog now look the same in the terminal panel as in the pictures: every pose was redrawn so each terminal cell (2 × 4 pixels) holds at most two colors, which is all an octant character can show. Before, cells with a third color lost it, so the blink, the meow tongue, and the nose came out different
+- The meowing cat shuts its eyes and keeps its nose, with a short tongue below it
+- The dog's nose is eye-dark, the sleeping dog has no collar, and raised running legs have no paw tip, so they fit their cells
+- `docs/images/characters.gif` shows the new art
+
 ## v1.1.1 (2026-11-20)
 
 ### Bug Fixes

@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { look, freshDue, iconKind, REFRESH_ICON, faceKeep, octantTerminal, pickBrowsers, lineDelta, addDiff, patchOrange, emptyTree, patchLoop, describeAgent, toolStart, toolEnd, ended, visibleAgents, fit, newLoop, flowColumns, ellipsis, branchLines, joinLines, arrowFrame, shouldCheckUpdate, updatedVersion, UPDATE_EVERY_MS, deskOf, dotRows, dotSvg, dotScene, flagSvg, dotRgba, base64, pixelTerminal, sprite, prop, stations, miniTrack, petMood, petPixels, overlay, replayAt, costMark, parsePeers, parseAgents, cmuxTarget, parseTabs, findTabs, stick, handoffLabel, appOf, hostTag, handoffNote, pullRequest, pullFrom, screenState } from '../hooks/state'
+import { CHARACTERS, look, freshDue, iconKind, REFRESH_ICON, faceKeep, octantTerminal, pickBrowsers, lineDelta, addDiff, patchOrange, emptyTree, patchLoop, describeAgent, toolStart, toolEnd, ended, visibleAgents, fit, newLoop, flowColumns, ellipsis, branchLines, joinLines, arrowFrame, shouldCheckUpdate, updatedVersion, UPDATE_EVERY_MS, deskOf, dotRows, dotSvg, dotScene, flagSvg, dotRgba, base64, pixelTerminal, sprite, prop, stations, miniTrack, petMood, petPixels, overlay, replayAt, costMark, parsePeers, parseAgents, cmuxTarget, parseTabs, findTabs, stick, handoffLabel, appOf, hostTag, handoffNote, pullRequest, pullFrom, screenState } from '../hooks/state'
 
 test('parallel tools: stays tool while others still run after one ends', async () => {
   let l = toolStart(toolStart(newLoop('m', 'main'), 'Bash a'), 'Bash b')
@@ -426,15 +426,39 @@ test('faceKeep: each eye and the nose are one quadrant, the nose below the eyes,
   const cat = faceKeep(sprite('work', 0, 'cat'))
   expect([...cat.quads].sort()).toEqual([['11,3', 'E'], ['12,4', 'D'], ['13,3', 'E']])
   const dog = faceKeep(sprite('work', 0, 'dog'))
-  expect([...dog.quads].sort()).toEqual([['10,3', 'E'], ['11,4', 'D'], ['12,4', 'D'], ['13,3', 'E']])
+  expect([...dog.quads].sort()).toEqual([['10,3', 'E'], ['11,4', 'K'], ['12,4', 'K'], ['13,3', 'E']])
   // a failed dog's eyes are crossed (strokes in rows 5 and 7): they still land in row 3 of quadrants, like at work
   expect([...faceKeep(sprite('fail', 0, 'dog'), sprite('work', 0, 'dog')).quads].filter(([, v]) => v === 'E').map(([k]) => k).sort()).toEqual(['10,3', '13,3'])
 })
 
 test('faceKeep layout: a dog\'s eyes and nose move to the cat\'s columns, awake and asleep', async () => {
   const layout = { eyes: [11, 13] as [number, number], nose: 12 }
-  expect([...faceKeep(sprite('work', 0, 'dog'), sprite('work', 0, 'dog'), layout).quads].sort()).toEqual([['11,3', 'E'], ['12,4', 'D'], ['13,3', 'E']])
+  expect([...faceKeep(sprite('work', 0, 'dog'), sprite('work', 0, 'dog'), layout).quads].sort()).toEqual([['11,3', 'E'], ['12,4', 'K'], ['13,3', 'E']])
   expect([...faceKeep(sprite('sleep', 0, 'dog'), sprite('work', 0, 'dog'), layout).quads].map(([k]) => k).sort()).toEqual(['11,4', '12,5', '13,4'])
+})
+
+test('every pose of every pet fits its terminal cells: at most two colors in each 2 × 4 pixel cell, so octants draw it exactly', async () => {
+  const pal: Record<string, string> = look('#93c5fd')
+  for (const ch of CHARACTERS) for (const pose of ['run', 'think', 'work', 'fail', 'sleep'] as const) for (const f of [0, 1]) {
+    const g = sprite(pose, f, ch)
+    for (let y = 0; y < 16; y += 4) for (let x = 0; x < 16; x += 2) {
+      const colors = new Set<string>()
+      for (let dy = 0; dy < 4; dy++) for (let dx = 0; dx < 2; dx++) { const c = g[y + dy]![x + dx]!; colors.add(c === '.' ? '' : pal[c]!) }
+      expect([`${ch} ${pose} ${f} ${x},${y}`, colors.size <= 2]).toEqual([`${ch} ${pose} ${f} ${x},${y}`, true])
+    }
+  }
+})
+
+test('faceKeep: a blink leaves the eyes out (a quadrant has no thinner eyelid) while sleep keeps them closed, and a meow keeps the nose above the tongue', async () => {
+  const layout = { eyes: [11, 13] as [number, number], nose: 12 }
+  expect([...faceKeep(sprite('think', 1, 'cat'), sprite('work', 0, 'cat')).quads]).toEqual([['12,4', 'D']])
+  expect([...faceKeep(sprite('think', 1, 'dog'), sprite('work', 0, 'dog'), layout).quads]).toEqual([['12,4', 'K']])
+  expect([...faceKeep(sprite('sleep', 0, 'cat'), sprite('work', 0, 'cat')).quads].map(([k]) => k).sort()).toEqual(['11,4', '13,4'])
+  // tired eyes (V over the lower half) are still open
+  const tired = overlay(sprite('run', 0, 'cat'), petPixels('cat', 'run', 0, { tired: true, heavy: false, cost: 0, sky: 'day' }))
+  expect([...faceKeep(tired, sprite('work', 0, 'cat')).quads].filter(([, v]) => v === 'E')).toHaveLength(2)
+  // the meowing cat shuts its eyes (a blink in quadrants) and keeps the nose above the tongue
+  expect([...faceKeep(sprite('work', 1, 'cat'), sprite('work', 0, 'cat')).quads]).toEqual([['12,3', 'D']])
 })
 
 test('iconKind: a Nerd Font symbol where the terminal ships its own symbols, the arrow in a UTF-8 terminal, a letter otherwise, and the setting overrides', async () => {
