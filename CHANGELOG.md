@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.2.1 (2026-11-23)
+
+### Bug Fixes
+
+- Topic check skips prompts of fewer than three words instead of fewer than 20 characters, so a short Korean prompt that changes the topic (`오늘이나 내일 날씨를 예측해봐`, 15 characters) is checked
+
 ## v1.2.0 (2026-11-23)
 
 ### Features

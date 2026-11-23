@@ -717,6 +717,10 @@ export function topicAsk(prev: readonly string[], text: string): string {
     'Does the new prompt need that earlier conversation (it refers to it, continues the same work, or uses its files or results)? Answer YES or NO only. If unsure, answer YES.'
 }
 export const topicNew = (answer: string) => /^\W*no\b/i.test(answer)
+// Prompts under TOPIC_MIN_WORDS words (ok, 계속, 네 진행해) are short replies to the last turn and aren't checked. Words, not characters:
+// a Korean prompt says as much in far fewer characters than an English one.
+export const TOPIC_MIN_WORDS = 3
+export const topicSkip = (text: string) => text.trim().split(/\s+/).filter(Boolean).length < TOPIC_MIN_WORDS
 
 // Whether to check for updates: the setting is on, installed from the Goyangi marketplace, and the interval has passed since the last check.
 // Installs live at <config dir>/plugins/cache/<marketplace>/<plugin>/<version> ($.plugin.root). Dev copies (other marketplaces, --plugin-dir) are not checked.

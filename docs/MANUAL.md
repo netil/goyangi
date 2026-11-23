@@ -68,7 +68,7 @@ Logo, session summary (turns, steps, tool calls, cost), a status chip, and butto
 Two checks hold a prompt:
 
 - **Idle hold**: the last turn ended **Idle hold** minutes ago or more (60 by default). The prompt cache has expired by then (five minutes by default, an hour on some plans: set Idle hold to match), so the next request writes the whole context again
-- **Topic check**: Haiku reads your last three prompts, each cut to 300 characters (never the transcript), and the new one, and answers whether the new one needs the earlier conversation. It costs a second or two before a long session's prompt is sent. Prompts under 20 characters and slash commands are not checked, and a timeout or an error lets the prompt through
+- **Topic check**: Haiku reads your last three prompts, each cut to 300 characters (never the transcript), and the new one, and answers whether the new one needs the earlier conversation. It costs a second or two before a long session's prompt is sent. Prompts of fewer than three words (`ok`, `네 진행해`) and slash commands are not checked, and a timeout or an error lets the prompt through
 
 ### Turn flow
 

@@ -1,6 +1,6 @@
 import { test, expect, mock } from 'claude-code/testing'
 import type { TestBody } from 'claude-code/testing'
-import { idleDue, topicAsk, topicNew, holdMinK } from '../hooks/state'
+import { idleDue, topicAsk, topicNew, topicSkip, holdMinK } from '../hooks/state'
 
 test('idleDue: past the idle minutes with a large context only', async () => {
   const h = 3600_000
@@ -22,6 +22,14 @@ test('topicAsk cuts long prompts; topicNew reads only a NO', async () => {
   expect(topicNew('No.')).toBe(true)
   expect(topicNew('YES')).toBe(false)
   expect(topicNew('nothing')).toBe(false)
+})
+
+test('topicSkip: fewer than three words is a short reply, in any language', async () => {
+  expect(topicSkip('ok')).toBe(true)
+  expect(topicSkip('네 진행해')).toBe(true)
+  expect(topicSkip('  yes   please ')).toBe(true)
+  expect(topicSkip('오늘이나 내일 날씨를 예측해봐')).toBe(false)
+  expect(topicSkip('fix the build')).toBe(false)
 })
 
 // A session with one finished turn and a 250k context (the hold starts at the 200k fresh-session point). choice is what the person picks in

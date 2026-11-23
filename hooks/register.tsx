@@ -5,7 +5,7 @@ import {
   addLog, addDiff, lineDelta, addServer, arrowFrame, bar, branchLines, bump, displayWidth, ellipsis, joinLines, usd, logWindow, countTool, describeAgent, emptyTree, ended, fit, flowColumns, flowEnd, flowStart, fmtTok, isBusy, runs, toolClass, turnBegin, turnMark,
   patchLoop, secs, summarize, toolEnd, toolStart, topTools, visibleAgents, who,
   toolErr, noteFail, addToolTime, slowTools, ctxLevel, focusFlow, stepOpen, spawnOrigin, returnTarget, headState,
-  shouldCheckUpdate, updatedVersion, freshDue, FRESH_FULL, idleDue, topicAsk, topicNew, holdMinK, forkText, bgId, forkBrief, forkDone, askLine, deskOf, CHARACTERS, characterOf, look as LOOK, dotRows, dotSvg, dotRgba, pixelTerminal, octantTerminal, iconKind, REFRESH_ICON, dotScene, flagShapes, flagSvg, parsePeers, parseAgents, appOf, hostTag, parseTabs, findTabs, stick, treeRows, handoffLabel, handoffSid, tabsScript, firefoxCmd, firefoxFocus, BROWSERS, pickBrowsers, isAgent, cmuxTarget, screenState, handoffNote, pullRequest, pullFrom, handoffFrom, sprite, miniSprite, petMood, petPixels, overlay, faceKeep, replayAt, costMark, prop, stations,
+  shouldCheckUpdate, updatedVersion, freshDue, FRESH_FULL, idleDue, topicAsk, topicNew, topicSkip, holdMinK, forkText, bgId, forkBrief, forkDone, askLine, deskOf, CHARACTERS, characterOf, look as LOOK, dotRows, dotSvg, dotRgba, pixelTerminal, octantTerminal, iconKind, REFRESH_ICON, dotScene, flagShapes, flagSvg, parsePeers, parseAgents, appOf, hostTag, parseTabs, findTabs, stick, treeRows, handoffLabel, handoffSid, tabsScript, firefoxCmd, firefoxFocus, BROWSERS, pickBrowsers, isAgent, cmuxTarget, screenState, handoffNote, pullRequest, pullFrom, handoffFrom, sprite, miniSprite, petMood, petPixels, overlay, faceKeep, replayAt, costMark, prop, stations,
   WINDOW_MS, limitEta, isStalled, cacheDropped, ctxParts, upsertRecord, historySummary, pickKids,
   miniTrack, firstLine, toolResult, addFile, timeStrip, overlaps, archiveTurn, mapTokens, weightBar, timeShares, shareWidths, advise, isKeyLog, brailleSpark, lineGauge, rowCard, wrapLines, resumed, scopeKey,
 } from './state'
@@ -405,7 +405,7 @@ async function holdWhy($: EngineInterface, text: string): Promise<{ why: string;
   const now = await $.clock.now()
   if (idleDue(lastAt, now, cur.idleAlertMin, k, minK))
     return { why: `${Math.round((now - lastAt) / 60_000)} min since the last turn, so the prompt cache has expired and sending this prompt here writes ${k}k tokens of context again.`, topic: false }
-  if (!cur.topicCheck || k < minK || text.trim().length < 20) return
+  if (!cur.topicCheck || k < minK || topicSkip(text)) return
   if (await $.store.get(`topicKept:${await $.session.id()}`).catch(() => undefined)) return
   const r = await $.model.complete({ model: 'haiku', prompt: topicAsk(t.turns.slice(-3).map(s => s.prompt), text), effort: 'low', maxTokens: 5, timeoutMs: 5000 })
   if (r.isAnswered && topicNew(r.text)) return { why: `This prompt looks unrelated to the earlier conversation, and sending it here reads ${k}k tokens of context.`, topic: true }

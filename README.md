@@ -94,7 +94,7 @@ FRAMES=1 node check.mjs 30  # print the frames, to spot titles wrapping into col
 1. Run `claude plugin validate .` and `claude plugin test .`
 2. Raise `version` in `package.json` and `.claude-plugin/plugin.json` (installed copies update only when it changes)
 3. Move the changelog entries under a new `## vX.Y.Z (date)` heading
-4. Commit, then `git tag vX.Y.Z`, `git push --follow-tags`, and `gh release create vX.Y.Z --notes-file <notes>`
+4. Commit, then `git tag -a vX.Y.Z -m vX.Y.Z`, `git push --follow-tags`, and `gh release create vX.Y.Z --notes-file <notes>` (`--follow-tags` pushes annotated tags only)
 
 ## License
 
