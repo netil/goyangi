@@ -5,7 +5,7 @@ import {
   addLog, addDiff, lineDelta, addServer, arrowFrame, bar, branchLines, bump, displayWidth, ellipsis, joinLines, usd, logWindow, countTool, describeAgent, emptyTree, ended, fit, flowColumns, flowEnd, flowStart, fmtTok, isBusy, runs, toolClass, turnBegin, turnMark,
   patchLoop, secs, summarize, toolEnd, toolStart, topTools, visibleAgents, who,
   toolErr, noteFail, addToolTime, slowTools, ctxLevel, focusFlow, stepOpen, spawnOrigin, returnTarget, headState,
-  shouldCheckUpdate, updatedVersion, freshDue, FRESH_FULL, forkText, bgId, forkBrief, forkDone, askLine, deskOf, CHARACTERS, characterOf, look as LOOK, dotRows, dotSvg, dotRgba, pixelTerminal, octantTerminal, iconKind, REFRESH_ICON, dotScene, flagShapes, flagSvg, parsePeers, parseAgents, appOf, hostTag, parseTabs, findTabs, stick, treeRows, handoffLabel, handoffSid, tabsScript, firefoxCmd, firefoxFocus, BROWSERS, pickBrowsers, isAgent, cmuxTarget, screenState, handoffNote, pullRequest, pullFrom, handoffFrom, sprite, miniSprite, petMood, petPixels, overlay, faceKeep, replayAt, costMark, prop, stations,
+  shouldCheckUpdate, updatedVersion, freshDue, FRESH_FULL, idleDue, topicAsk, topicNew, holdMinK, forkText, bgId, forkBrief, forkDone, askLine, deskOf, CHARACTERS, characterOf, look as LOOK, dotRows, dotSvg, dotRgba, pixelTerminal, octantTerminal, iconKind, REFRESH_ICON, dotScene, flagShapes, flagSvg, parsePeers, parseAgents, appOf, hostTag, parseTabs, findTabs, stick, treeRows, handoffLabel, handoffSid, tabsScript, firefoxCmd, firefoxFocus, BROWSERS, pickBrowsers, isAgent, cmuxTarget, screenState, handoffNote, pullRequest, pullFrom, handoffFrom, sprite, miniSprite, petMood, petPixels, overlay, faceKeep, replayAt, costMark, prop, stations,
   WINDOW_MS, limitEta, isStalled, cacheDropped, ctxParts, upsertRecord, historySummary, pickKids,
   miniTrack, firstLine, toolResult, addFile, timeStrip, overlaps, archiveTurn, mapTokens, weightBar, timeShares, shareWidths, advise, isKeyLog, brailleSpark, lineGauge, rowCard, wrapLines, resumed, scopeKey,
 } from './state'
@@ -271,7 +271,7 @@ function checkAdvice($: Parameters<typeof update>[0] & { ui: { toast: (text: str
 }
 
 // Settings: defaults come from the plugin settings (userConfig), overlaid with values changed in the settings screen (prefs). Changes apply to cur immediately.
-let base: Required<Prefs> = { autoOpen: true, ctxAlertPercent: 80, turnCostAlertUsd: 2, stallSeconds: 120, position: 'right', autoUpdate: true, view: 'default', character: 'cat', sessionRows: 4, tabRows: 4, freshMode: 'ask', freshAtK: 200, fork: false, icon: 'auto' }
+let base: Required<Prefs> = { autoOpen: true, ctxAlertPercent: 80, turnCostAlertUsd: 2, stallSeconds: 120, position: 'right', autoUpdate: true, view: 'default', character: 'cat', sessionRows: 4, tabRows: 4, freshMode: 'ask', freshAtK: 200, fork: false, icon: 'auto', idleAlertMin: 60, topicCheck: true }
 let cur: Required<Prefs> = { ...base }
 const applyPrefs = (p: Prefs) => { cur = { ...base, ...p } }
 // Overlay only the changed items (patch) on the stored values. With several sessions open, each session's values go stale,
@@ -287,7 +287,7 @@ async function savePrefs($: Parameters<typeof update>[0] & { store: { get: (k: s
 // Setting values (userConfig). Non-numbers fall back to the default. 0 means off.
 const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d)
 // Rows a scrolling box (Sessions, Browser tabs) shows at once: 1 to 10, default 4
-type NumKey = 'ctxAlertPercent' | 'turnCostAlertUsd' | 'stallSeconds' | 'freshAtK' | 'sessionRows' | 'tabRows'
+type NumKey = 'ctxAlertPercent' | 'turnCostAlertUsd' | 'stallSeconds' | 'freshAtK' | 'idleAlertMin' | 'sessionRows' | 'tabRows'
 // Upper limits of the numeric settings (0 is the lower, meaning off); the row counts are 1 to 10 (rowsOf)
 // Escape never reaches a settings number (numfield.tsx). On desktop it hands the keyboard back, so the Pane redraws with isFocused turning
 // false (paneFocused holds the last value); in the terminal it is the pane's close key, refused while a number is edited (ui.close). That drop, or a ui.focus (a click elsewhere in the site) past the one the number's own click raises
@@ -298,7 +298,7 @@ let paneFocused = false
 let escDrops = 0
 let editAt: number | undefined
 const FOCUS_GRACE_MS = 300
-const NUM_MAX = { ctxAlertPercent: 100, turnCostAlertUsd: 50, stallSeconds: 600, freshAtK: 1000 } as const
+const NUM_MAX = { ctxAlertPercent: 100, turnCostAlertUsd: 50, stallSeconds: 600, freshAtK: 1000, idleAlertMin: 1440 } as const
 const clampPref = (key: NumKey, v: number) => (key === 'sessionRows' || key === 'tabRows' ? rowsOf(v) : Math.max(0, Math.min(NUM_MAX[key], Math.round(v))))
 const rowsOf = (v: unknown) => Math.max(1, Math.min(10, Math.round(num(v, 4))))
 
@@ -369,11 +369,12 @@ async function myHandoff($: EngineInterface): Promise<string> {
 // 3. The new session's first prompt points at the note (and carries the held prompt). The old session stays resumable with claude --resume.
 //    The pending note lives in $.store, so it survives anything /clear resets.
 let freshFile = ''
-async function startFresh($: EngineInterface, wait = false) {
+// then: a prompt the new session answers after reading the note (askHeld's Hand off and send)
+async function startFresh($: EngineInterface, wait = false, then?: string) {
   if (await read($, freshStage)) return
   const id = await $.session.id()
   freshFile = `${(await $.env.get('TMPDIR').catch(() => undefined)) || '/tmp/'}goyangi/handoff-${id}.md`.replace(/\/\/+/g, '/')
-  await $.store.set('fresh', { file: freshFile, prev: id, at: Date.now(), wait })
+  await $.store.set('fresh', { file: freshFile, prev: id, at: Date.now(), wait, ...(then ? { then } : {}) })
   if (((await $.session.usage().catch(() => undefined))?.context.percent ?? 0) >= FRESH_FULL) {
     await $.fs.write(freshFile, await myHandoff($))
     return wait ? update($, freshStage, () => 'ready') : clearToFresh($)
@@ -386,6 +387,54 @@ async function startFresh($: EngineInterface, wait = false) {
 async function clearToFresh($: EngineInterface) {
   await update($, freshStage, () => 'clearing')
   await $.clock.after(300, () => quiet($.command.run({ command: 'clear' }).catch(() => update($, freshStage, () => ''))))
+}
+
+// Why to ask before a typed prompt is sent, or undefined to let it through: the prompt cache expired while the person was away
+// (idleDue), or a small model reads the prompt as unrelated to the earlier ones (topicAsk). Either way the whole context would be sent again
+// for a prompt that may not need it. Keep and send turns the topic check off for the rest of the session (topicKept:<session id>), so a
+// person who keeps switching topics is asked once. The idle check needs no such mark: the kept prompt's turn moves the last turn's end.
+async function holdWhy($: EngineInterface, text: string): Promise<{ why: string; topic: boolean } | undefined> {
+  if (text.trimStart().startsWith('/') || (await read($, freshStage)) || (await myFork($))) return
+  const t = norm(await read($, tree))
+  const last = t.turns.at(-1)
+  if (t.turn.running || !last) return
+  const u = await $.session.usage().catch(() => undefined)
+  const k = Math.round(((u?.context.percent ?? 0) / 100) * (u?.context.window ?? 0) / 1000)
+  const minK = holdMinK(cur.freshAtK)
+  const lastAt = last.endedAt ?? last.startedAt
+  const now = await $.clock.now()
+  if (idleDue(lastAt, now, cur.idleAlertMin, k, minK))
+    return { why: `${Math.round((now - lastAt) / 60_000)} min since the last turn, so the prompt cache has expired and sending this prompt here writes ${k}k tokens of context again.`, topic: false }
+  if (!cur.topicCheck || k < minK || text.trim().length < 20) return
+  if (await $.store.get(`topicKept:${await $.session.id()}`).catch(() => undefined)) return
+  const r = await $.model.complete({ model: 'haiku', prompt: topicAsk(t.turns.slice(-3).map(s => s.prompt), text), effort: 'low', maxTokens: 5, timeoutMs: 5000 })
+  if (r.isAnswered && topicNew(r.text)) return { why: `This prompt looks unrelated to the earlier conversation, and sending it here reads ${k}k tokens of context.`, topic: true }
+}
+// The held prompt's question, asked after the drop so the submit hook isn't held open by the dialog.
+// Clear and send (topic): /clear, and the new session gets the prompt as typed (session.start, a fresh record with then and no file).
+// Hand off and send (idle, where the prompt likely goes on with the same work): a fresh session as the panel's button starts it, its note
+// written first, and the new session reads the note and answers the prompt. Writing the note rereads the context once, uncached.
+// Keep and send: the prompt goes here, as a plugin's submit, which holdWhy doesn't check.
+// Dismissed, or a typed Other: the text goes back in the box, and is sent when the box can't take it.
+const CLEAR_SEND = 'Clear and send'
+const HANDOFF_SEND = 'Hand off and send'
+const KEEP_SEND = 'Keep and send'
+async function askHeld($: EngineInterface, text: string, hold: { why: string; topic: boolean }) {
+  const q = hold.topic
+    ? `${hold.why} Clear the context and send this prompt in a fresh session?`
+    : `${hold.why} Write a handoff note and send this prompt in a fresh session that reads it?`
+  const a = await $.ui.ask(q, { header: 'Goyangi', options: [hold.topic ? CLEAR_SEND : HANDOFF_SEND, KEEP_SEND] }).catch(() => undefined)
+  if (a === CLEAR_SEND) {
+    await $.store.set('fresh', { prev: await $.session.id(), at: Date.now(), then: text })
+    return clearToFresh($)
+  }
+  if (a === HANDOFF_SEND) return startFresh($, false, text)
+  if (a === KEEP_SEND) {
+    if (hold.topic) await $.store.set(`topicKept:${await $.session.id()}`, true)
+    return $.prompt.submit({ text })
+  }
+  const f = await $.prompt.fill({ text })
+  if (!f.isFilled) await $.prompt.submit({ text })
 }
 
 // Forks: a prompt that starts with ; (setting Fork with ';') runs in a background session (claude --bg) while this one goes on: in its own git worktree (-w)
@@ -2790,6 +2839,10 @@ async function settingsScreen($: EngineInterface, e: RenderInput<'Pane' | 'Above
       <Button key="set-fork" hover={hov('set-fork')} variant={eff.fork ? 'primary' : undefined} label={eff.fork ? 'On' : 'Off'} onPress={setPref({ fork: !eff.fork })} />
     )),
     row('Fresh session at', stepper('freshAtK', 50, v => `${v}k`)),
+    row('Idle hold', stepper('idleAlertMin', 30, v => `${v}m`)),
+    row('Topic check', (
+      <Button key="set-topicCheck" hover={hov('set-topicCheck')} variant={eff.topicCheck ? 'primary' : undefined} label={eff.topicCheck ? 'On' : 'Off'} onPress={setPref({ topicCheck: !eff.topicCheck })} />
+    )),
     row('Context alert', stepper('ctxAlertPercent', 10, v => `${v}%`)),
     row('Turn cost alert', stepper('turnCostAlertUsd', 1, v => `$${v}`)),
     row('Stall threshold', stepper('stallSeconds', 30, v => `${v}s`)),
@@ -2872,6 +2925,8 @@ export const register: Register = (on, options) => {
     freshAtK: num(options.freshAtK, 200),
     fork: false,
     icon: 'auto',
+    idleAlertMin: num(options.idleAlertMin, 60),
+    topicCheck: true,
   }
   cur = { ...base }
 
@@ -2891,6 +2946,8 @@ export const register: Register = (on, options) => {
           : `Continue the work from the previous session. Read the handoff note at ${pending.file} first, then carry on from its next step. ${back}`
         await $.clock.after(300, () => quiet($.prompt.submit({ text })))
       }
+      // A prompt the person chose to clear for (askHeld): sent as typed, with nothing of the previous session
+      if (!pending.file && pending.then && Date.now() - (pending.at ?? 0) < 600_000) await $.clock.after(300, () => quiet($.prompt.submit({ text: pending.then! })))
     }
     await $.tool.register({
       name: 'browser_tabs',
@@ -2978,6 +3035,12 @@ export const register: Register = (on, options) => {
         await clearToFresh($)
         return { drop: 'Goyangi carries this prompt into a fresh session' }
       }
+    }
+    // Held before it is sent (holdWhy), and the person is asked whether to clear first (askHeld)
+    const hold = e.origin.kind === 'composer' ? await holdWhy($, e.text).catch(() => undefined) : undefined
+    if (hold) {
+      $.clock.after(100, () => quiet(askHeld($, e.text, hold)))
+      return { drop: 'Goyangi asks before sending this prompt' }
     }
     const peer = e.origin.kind === 'peer' || e.origin.kind === 'peer-send-message'
     const sender = peer ? handoffFrom(e.text) : undefined

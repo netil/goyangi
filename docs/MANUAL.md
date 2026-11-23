@@ -58,6 +58,18 @@ Logo, session summary (turns, steps, tool calls, cost), a status chip, and butto
 
 **Continue in a fresh session.** When the context reaches the **Fresh session at** point (200k tokens by default, the same size in a 200k or 1M window) or 95% of the window, Goyangi moves the work to a new session in the same window instead of compacting. With `Ask`, `⟳ ctx 210k · Continue in a fresh session` appears, and one click writes a handoff note, runs `/clear`, and starts a new session whose first prompt points at the note. With `Auto`, the note is written when a turn ends past the point, and the panel shows `⟳ Your next prompt continues in a fresh session`. The next prompt you type is held back, `/clear` runs, and the new session reads the note and answers that prompt, so nothing you haven't asked for runs on its own. The old session stays available with `claude --resume <id>`. At 95% or more Goyangi writes the note itself without a model turn. `Off` turns all of this off.
 
+**Prompt hold.** While the context is at the **Fresh session at** point or past it (200k tokens by default, and 200k when that setting is 0), a prompt you type is held before it is sent when sending it here would reread the whole context for little reason, and Goyangi asks with the reason:
+
+- **Clear and send** (topic check): `/clear` runs and the new session gets the prompt as you typed it, with nothing of the old one (`claude --resume <id>` still opens it)
+- **Hand off and send** (idle hold, where the prompt likely goes on with the same work): as **Continue in a fresh session**, the model writes a handoff note first, then `/clear` runs and the new session reads the note and answers your prompt. Writing the note reads the whole context once more, uncached
+- **Keep and send**: the prompt goes to this session. After a Keep on a topic question, the topic check stays off for the rest of the session
+- Closing the question puts the text back in the box
+
+Two checks hold a prompt:
+
+- **Idle hold**: the last turn ended **Idle hold** minutes ago or more (60 by default). The prompt cache has expired by then (five minutes by default, an hour on some plans: set Idle hold to match), so the next request writes the whole context again
+- **Topic check**: Haiku reads your last three prompts, each cut to 300 characters (never the transcript), and the new one, and answers whether the new one needs the earlier conversation. It costs a second or two before a long session's prompt is sent. Prompts under 20 characters and slash commands are not checked, and a timeout or an error lets the prompt through
+
 ### Turn flow
 
 How the turn unfolded (`f`).
@@ -208,6 +220,8 @@ Press `=` in the header (`⚙` on desktop). Changes apply immediately and persis
 | Stall threshold | `−` / `+`, steps of 30s | 120s |
 | Fresh session | `Ask (one click)` / `Auto` / `Off` | Ask |
 | Fresh session at | `−` / `+`, steps of 50k tokens | 200k |
+| Idle hold | `−` / `+`, steps of 30 minutes | 60m |
+| Topic check | `On` / `Off` | On |
 | Fork with ';' | `On` / `Off` | Off |
 | Refresh icon | `Auto` / `Nerd Font` / `Unicode ↺` / `ASCII R` | Auto |
 | Open sessions rows | `−` / `+`, 1 to 10 | 4 |
@@ -215,7 +229,7 @@ Press `=` in the header (`⚙` on desktop). Changes apply immediately and persis
 
 0 turns an alert off. An auto-opened panel waits until the terminal is at least 110 columns wide.
 
-Initial values for some items come from plugin options (`/plugin configure goyangi@goyangi`): `autoOpen`, `ctxAlertPercent`, `turnCostAlertUsd`, `stallSeconds`, `freshAtK`, `sessionRows`, `tabRows`. A value changed in the settings screen takes precedence.
+Initial values for some items come from plugin options (`/plugin configure goyangi@goyangi`): `autoOpen`, `ctxAlertPercent`, `turnCostAlertUsd`, `stallSeconds`, `freshAtK`, `idleAlertMin`, `sessionRows`, `tabRows`. A value changed in the settings screen takes precedence.
 
 ### Refresh icon
 

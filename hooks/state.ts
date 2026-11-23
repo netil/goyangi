@@ -701,6 +701,23 @@ export function freshDue(ctx: { percent?: number; window?: number } | undefined,
   return pct >= FRESH_FULL || (freshAtK > 0 && (pct / 100) * (ctx?.window ?? 0) >= freshAtK * 1000)
 }
 
+// Holding a prompt once before it is sent: only while the context is at least the fresh-session point (freshAtK, HOLD_MIN_K when that is 0),
+// since a fresh session starts again with the system prompt, tools and memory files, and a context near that size costs little more to send.
+export const HOLD_MIN_K = 200
+export const holdMinK = (freshAtK: number) => (freshAtK > 0 ? freshAtK : HOLD_MIN_K)
+// Idle: the prompt cache has expired (five minutes by default, an hour on some plans), so the next request writes the whole context again.
+// idleMin 0 turns it off.
+export function idleDue(lastAt: number, now: number, idleMin: number, ctxK: number, minK: number): boolean {
+  return idleMin > 0 && lastAt > 0 && now - lastAt >= idleMin * 60_000 && ctxK >= minK
+}
+// Topic check: a small model reads only the last few prompts (never the transcript) and the new one, and answers YES or NO.
+export function topicAsk(prev: readonly string[], text: string): string {
+  const cut = (s: string) => (s.length > 300 ? `${s.slice(0, 300)}…` : s)
+  return `Earlier prompts in a coding-agent conversation, oldest first:\n${prev.map((p, i) => `${i + 1}. ${cut(p)}`).join('\n')}\n\nNew prompt:\n${cut(text)}\n\n` +
+    'Does the new prompt need that earlier conversation (it refers to it, continues the same work, or uses its files or results)? Answer YES or NO only. If unsure, answer YES.'
+}
+export const topicNew = (answer: string) => /^\W*no\b/i.test(answer)
+
 // Whether to check for updates: the setting is on, installed from the Goyangi marketplace, and the interval has passed since the last check.
 // Installs live at <config dir>/plugins/cache/<marketplace>/<plugin>/<version> ($.plugin.root). Dev copies (other marketplaces, --plugin-dir) are not checked.
 export function shouldCheckUpdate(enabled: boolean, root: string, lastAt: unknown, now: number): boolean {

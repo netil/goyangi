@@ -43,6 +43,7 @@ Work in tab B3
 - **Walk and compact views**: press `v` and a pixel cat or dog walks through the turn, its mood showing context, cost, and usage limits. Press again for a compact two-row track of the steps
 - **Forks**: start a prompt with `;` and it runs in a background session in its own git worktree while you keep working here. Its permission requests come to this panel, and it merges back when its tests pass
 - **Fresh session**: past a token point (200k by default), the work moves to a new session in the same window with a handoff note instead of compacting
+- **Prompt hold**: in a long session, a prompt typed after the prompt cache expired, or one a small model reads as off topic, is held before it is sent, and Goyangi asks whether to send it here or in a fresh session
 - **Open sessions**: send this session's handoff to another Claude Code session or a coding agent (Codex, OpenCode, ...), or pull theirs here
 - **Browser tabs**: your open tabs, numbered. Say "B3" or "the GitHub PR tab" and the model works in that tab
 - **Terminal and desktop app**: the same panel in both

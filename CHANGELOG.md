@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.2.0 (2026-11-23)
+
+### Features
+
+- Prompt hold: while the context is at the **Fresh session at** point or past it (200k tokens by default), a typed prompt is held before it is sent when sending it would reread the whole context for little reason, and Goyangi asks: **Clear and send** (topic check) runs `/clear` and sends the prompt as typed in the new session, **Hand off and send** (idle hold) writes a handoff note first and the new session reads it before answering the prompt, **Keep and send** sends it here (and turns the topic check off for the rest of the session). Closing the question puts the text back in the box
+  - **Idle hold**: the last turn ended at least this many minutes ago (60 by default), so the prompt cache has expired and the next request writes the whole context again. 0 turns it off
+  - **Topic check**: Haiku reads the last three prompts (cut to 300 characters, never the transcript) and the new one, and the prompt is held when it reads as unrelated. Prompts under 20 characters and slash commands are not checked. A timeout or an error lets the prompt through. On by default
+
 ## v1.1.2 (2026-11-21)
 
 ### Bug Fixes

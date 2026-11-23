@@ -1,6 +1,6 @@
 {
   "name": "goyangi",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "A panel beside the Claude Code conversation: watch each turn's steps, tools, tokens, cost, and usage limits; hand work between sessions, coding agents, and browser tabs; and continue in a fresh session before the context fills (/goyangi)",
   "author": {
     "name": "netil"
@@ -24,6 +24,12 @@
       "title": "Fresh session point (thousand tokens)",
       "description": "Context size, in thousands of tokens, at which Goyangi offers (Ask) or prepares (Auto) a fresh session. It also happens at 95% of the window. 0 leaves only the 95% point",
       "default": 200
+    },
+    "idleAlertMin": {
+      "type": "number",
+      "title": "Idle hold (minutes)",
+      "description": "After this many minutes without a turn, the prompt cache has expired, so a prompt typed while the context is at the Fresh session point or past it is held and Goyangi asks whether to clear the context first or send it here. 0 turns it off",
+      "default": 60
     },
     "turnCostAlertUsd": {
       "type": "number",
