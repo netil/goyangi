@@ -41,7 +41,7 @@ Work in tab B3
 - **Gauges and advice**: context, cache hit rate, and the 5h and 7d usage limits with a forecast. Rule-based advice flags repeated failures, cache drops, and files read again. All computed locally, no tokens spent
 - **Session map and log**: one row per turn to compare, and a replay of any recent turn. The log switches between key events and everything
 - **Walk and compact views**: press `v` and a pixel cat or dog walks through the turn, its mood showing context, cost, and usage limits. Press again for a compact two-row track of the steps
-- **Forks**: start a prompt with `;` and it runs in a background session in its own git worktree while you keep working here. Its permission requests come to this panel, and it merges back when its tests pass
+- **Forks**: set **Spawn** to `bg`, then start a prompt with its shortcut (`;` at first, changeable in the settings screen) and the model first asks how the new session starts (a compact summary of this session, or empty), then it runs in a background session (`fg` opens a split pane beside this one instead, in herdr, tmux or cmux, and attaches to it) in its own git worktree while you keep working here. Its permission requests come to this panel, and it merges back when its tests pass
 - **Fresh session**: past a token point (200k by default), the work moves to a new session in the same window with a handoff note instead of compacting
 - **Prompt hold**: in a long session, a prompt typed after the prompt cache expired, or one a small model reads as off topic, is held before it is sent, and Goyangi asks whether to send it here or in a fresh session
 - **Open sessions**: send this session's handoff to another Claude Code session or a coding agent (Codex, OpenCode, ...), or pull theirs here

@@ -1508,11 +1508,11 @@ export const handoffFrom = (text: string): string | undefined => /Handoff from C
 // The sender's session id from the same line (handoffNote writes it in parentheses after the name), to match a note to the pull that asked for it
 export const handoffSid = (text: string): string | undefined => /Handoff from Claude Code session "[^"]*" \(([^)]+)\)/.exec(text)?.[1]
 
-// Fork (a prompt that starts with ;): the request runs in a background session (claude --bg), in its own git worktree where the folder is a repository.
+// Fork (a prompt that starts with the Spawn shortcut, ; at first): the request runs in a background session (claude --bg), in its own git worktree where the folder is a repository.
 // The text after the ; (spaces trimmed), or undefined when the prompt is no fork or names nothing to do.
-export function forkText(text: string): string | undefined {
-  if (!text.startsWith(';')) return undefined
-  const rest = text.slice(1).trim()
+export function forkText(text: string, key = ';'): string | undefined {
+  if (!key || !text.startsWith(key)) return undefined
+  const rest = text.slice(key.length).trim()
   return rest || undefined
 }
 // The short id `claude --bg` prints ("backgrounded · df508702"): the first 8 characters of the new session's id, which the fork finds itself by.
@@ -1520,12 +1520,13 @@ export function bgId(stdout: string): string | undefined {
   return /backgrounded\s*·\s*([0-9a-f]{8})/.exec(stdout)?.[1]
 }
 // The first prompt of the fork's session: the request as typed, and the rules it works under.
-export function forkBrief(request: string, git: boolean): string {
+export function forkBrief(request: string, git: boolean, summary?: string): string {
   return [
     'This is a fork: the person asked for this from another session, which keeps working meanwhile. Their request:',
     '',
     request,
     '',
+    ...(summary ? ['Summary of the session that forked you, for context:', '', summary, ''] : []),
     'Rules:',
     git
       ? '- Change files only inside this worktree. Do not commit: the session that forked you commits and merges your changes.'

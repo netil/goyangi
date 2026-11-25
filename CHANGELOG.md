@@ -1,10 +1,24 @@
 # Changelog
 
+## v1.3.0 (2026-11-25)
+
+### Features
+
+- **Spawn** replaces **Fork with ';'**: one button cycles `Off`, `bg`, and `fg`, and a `[ ; ]` field next to it sets the shortcut character (a saved Fork setting reads as `bg`). With Spawn on, a prompt that starts with the shortcut makes the model ask how the new session starts (**Compact summary + new session** or **New session**), then start it with the new `fork` tool (`mcp__goyangi__fork`). With Spawn `Off` the tool starts nothing and `;` is an ordinary character
+- `fg` opens a split pane that attaches to the fork: below this one when the panel is on the right (beside it in the Compact view or with the panel at the bottom), in herdr, tmux or cmux, and a new Terminal window on macOS where none is available. The pane or window closes when the fork is merged or discarded
+- Open sessions marks background sessions with `bg`
+- A fork's start shows `Starting the fork...` at once, and the same request typed again while it starts is ignored instead of forking twice
+
+### Changes
+
+- Turn flow: the Prev and Next boxes are texts (`<< Prv` over `Prv 6`, `>>` over `Next 6`) and the count rows are clickable without the `p` and `n` keys
+- Turn flow: step boxes are 18 cells wide and 4 rows high (cache tokens and cost share a row, the token row has no `·`, the answer box says `t` for total), and the arrows between them take 3 cells, so more steps fit. The shown steps also extend forward to fill the room left beside them
+
 ## v1.2.1 (2026-11-23)
 
 ### Bug Fixes
 
-- Topic check skips prompts of fewer than three words instead of fewer than 20 characters, so a short Korean prompt that changes the topic (`오늘이나 내일 날씨를 예측해봐`, 15 characters) is checked
+- Topic check skips prompts of fewer than three words (`ok`, `yes please`, `네 진행해`) instead of fewer than 20 characters, so a short prompt that changes the topic is checked in English and Korean alike (`what about tomorrow's weather`, `오늘이나 내일 날씨를 예측해봐`). Before, a Korean prompt that says as much as an English one in fewer characters often went unchecked
 
 ## v1.2.0 (2026-11-23)
 

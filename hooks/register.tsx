@@ -271,9 +271,11 @@ function checkAdvice($: Parameters<typeof update>[0] & { ui: { toast: (text: str
 }
 
 // Settings: defaults come from the plugin settings (userConfig), overlaid with values changed in the settings screen (prefs). Changes apply to cur immediately.
-let base: Required<Prefs> = { autoOpen: true, ctxAlertPercent: 80, turnCostAlertUsd: 2, stallSeconds: 120, position: 'right', autoUpdate: true, view: 'default', character: 'cat', sessionRows: 4, tabRows: 4, freshMode: 'ask', freshAtK: 200, fork: false, icon: 'auto', idleAlertMin: 60, topicCheck: true }
+let base: Required<Prefs> = { autoOpen: true, ctxAlertPercent: 80, turnCostAlertUsd: 2, stallSeconds: 120, position: 'right', autoUpdate: true, view: 'default', character: 'cat', sessionRows: 4, tabRows: 4, freshMode: 'ask', freshAtK: 200, fork: false, spawn: 'off', spawnKey: ';', icon: 'auto', idleAlertMin: 60, topicCheck: true }
 let cur: Required<Prefs> = { ...base }
-const applyPrefs = (p: Prefs) => { cur = { ...base, ...p } }
+// Before Spawn, the setting was Fork with ';' (fork: true): it stands for bg with ; until Spawn is saved
+const withSpawn = (p: Prefs): Prefs => (p.spawn === undefined && p.fork ? { ...p, spawn: 'bg' } : p)
+const applyPrefs = (p: Prefs) => { cur = { ...base, ...withSpawn(p) } }
 // Overlay only the changed items (patch) on the stored values. With several sessions open, each session's values go stale,
 // so saving everything would undo a view mode or position changed in another session. reset clears all changed values.
 async function savePrefs($: Parameters<typeof update>[0] & { store: { get: (k: string) => Promise<unknown>; set: (k: string, v: unknown) => Promise<void> } }, patch: Prefs, reset = false) {
@@ -449,20 +451,78 @@ const forkIds = async ($: EngineInterface) => {
   const v = await $.store.get(`forksOf:${await $.session.id()}`).catch(() => undefined)
   return Array.isArray(v) ? (v as string[]) : []
 }
-async function startFork($: EngineInterface, request: string) {
+// Spawn fg: a split pane beside this one that attaches to the fork's background session (claude attach), so the fork is watched in the terminal.
+// The innermost multiplexer wins (herdr and tmux run inside a GUI terminal such as cmux). Returns the pane (to close it later) or undefined when none is found or the split failed.
+async function splitPane($: EngineInterface, id: string, cwd: string): Promise<ForkRec['pane'] | undefined> {
+  const [herdr, tmux, cmux] = await Promise.all([$.env.get('HERDR_PANE_ID'), $.env.get('TMUX_PANE'), $.env.get('CMUX_SURFACE_ID')]).catch(() => [undefined, undefined, undefined])
+  const cmd = `claude attach ${id}`
+  // The panel sits on the right and takes the width there: the split goes below. With the panel at the bottom or in the Compact view, the right side is free
+  const down = cur.position === 'right' && cur.view !== 'compact'
+  const run = (argv: string[]) => $.process.run(argv, { cwd, timeoutMs: 10_000 }).catch(e => ({ exitCode: 1, stdout: '', stderr: String(e) }))
+  if (herdr) {
+    const r = await run(['herdr', 'pane', 'split', '--pane', herdr, '--direction', down ? 'down' : 'right', '--cwd', cwd, '--no-focus'])
+    const pane = /"pane_id"\s*:\s*"([^"]+)"/.exec(r.stdout)?.[1]
+    return r.exitCode === 0 && pane && (await run(['herdr', 'pane', 'run', pane, cmd])).exitCode === 0 ? { mux: 'herdr', ref: pane } : undefined
+  }
+  if (tmux) {
+    const r = await run(['tmux', 'split-window', down ? '-v' : '-h', '-d', '-P', '-F', '#{pane_id}', '-t', tmux, '-c', cwd, cmd])
+    return r.exitCode === 0 && r.stdout.trim() ? { mux: 'tmux', ref: r.stdout.trim() } : undefined
+  }
+  if (cmux) {
+    const r = await run(['cmux', 'new-split', down ? 'down' : 'right', '--surface', cmux])
+    const surface = /surface:\d+/.exec(r.stdout)?.[0]
+    return r.exitCode === 0 && surface && (await run(['cmux', 'send', '--surface', surface, cmd])).exitCode === 0 && (await run(['cmux', 'send-key', '--surface', surface, 'enter'])).exitCode === 0 ? { mux: 'cmux', ref: surface } : undefined
+  }
+  return undefined
+}
+// Without a multiplexer (or when its split failed) a new Terminal window attaches instead, on macOS. ref is the window id, which closing needs.
+async function openSplit($: EngineInterface, id: string, cwd: string): Promise<ForkRec['pane'] | undefined> {
+  const pane = await splitPane($, id, cwd)
+  if (pane || (await $.process.run(['uname'], { timeoutMs: 5_000 }).catch(() => undefined))?.stdout.trim() !== 'Darwin') return pane
+  const sh = `cd '${cwd.replace(/'/g, "'\\''")}' && claude attach ${id}`
+  const r = await $.process.run(['osascript', '-e', 'tell application "Terminal"', '-e', 'activate', '-e', `do script "${sh.replace(/[\\"]/g, '\\$&')}"`, '-e', 'end tell'], { timeoutMs: 10_000 }).catch(() => undefined)
+  const win = /window id (\d+)/.exec(r?.stdout ?? '')?.[1]
+  return r?.exitCode === 0 && win ? { mux: 'window', ref: win } : undefined
+}
+// Close the split pane Spawn fg opened (a pane the person already closed makes the command fail, which is fine)
+const closeSplit = ($: EngineInterface, pane: ForkRec['pane']) => pane
+  ? $.process.run(pane.mux === 'tmux' ? ['tmux', 'kill-pane', '-t', pane.ref] : pane.mux === 'herdr' ? ['herdr', 'pane', 'close', pane.ref] : pane.mux === 'window' ? ['osascript', '-e', `tell application "Terminal" to close (window id ${pane.ref})`] : ['cmux', 'close-surface', '--surface', pane.ref], { timeoutMs: 10_000 }).catch(() => undefined)
+  : undefined
+// Requests whose `claude --bg` has not answered yet: it can take a while, so a repeated submit of the same text is dropped instead of forking twice
+const forking = new Set<string>()
+async function startFork($: EngineInterface, request: string, summary?: string) {
+  if (forking.has(request)) return $.ui.toast('Goyangi · ⑂ This fork is still starting')
+  forking.add(request)
+  $.ui.toast('Goyangi · ⑂ Starting the fork...')
+  try { await spawnFork($, request, summary) } finally { forking.delete(request) }
+}
+// What the model is told when a Spawn prompt arrives: ask which start the person wants (AskUserQuestion, a model tool), then hand the request to the fork tool
+const forkAsk = (request: string) => [
+  'The person wants to run the request below in a separate background session (a fork). Do not do the request yourself.',
+  'First call AskUserQuestion once, with one question and exactly these two options:',
+  '1. "Compact summary + new session": the new session starts with a summary of this session.',
+  '2. "New session": the new session starts empty.',
+  'Then call the mcp__goyangi__fork tool with the request below word for word. For option 1, also pass summary: a short summary of this session (the goal, what is done, decisions and why, files involved, what is left). For option 2, pass no summary. After the tool answers, reply with one short line.',
+  '',
+  'Request:',
+  request,
+].join('\n')
+async function spawnFork($: EngineInterface, request: string, summary?: string) {
   const cwd = await $.session.cwd()
   const top = await gitIn($, cwd, 'rev-parse', '--show-toplevel')
   const isGit = top.exitCode === 0
   const root = isGit ? top.stdout.trim() : cwd
   const name = `fork-${Date.now().toString(36)}`
-  const r = await $.process.run(['claude', '--bg', ...(isGit ? ['-w', name] : []), forkBrief(request, isGit)], { cwd: root, env: { ...FORK_ENV, GOYANGI_FORK: '1' }, timeoutMs: 60_000 }).catch(e => ({ exitCode: 1, stdout: '', stderr: String(e) }))
+  const r = await $.process.run(['claude', '--bg', ...(isGit ? ['-w', name] : []), forkBrief(request, isGit, summary)], { cwd: root, env: { ...FORK_ENV, GOYANGI_FORK: '1' }, timeoutMs: 60_000 }).catch(e => ({ exitCode: 1, stdout: '', stderr: String(e) }))
   const id = bgId(`${r.stdout}\n${r.stderr}`)
   if (!id) return $.ui.toast(`Goyangi · Could not start the fork: ${`${r.stderr}\n${r.stdout}`.trim().split('\n')[0] || 'no answer'}`)
   const owner = await $.session.id()
   const rec: ForkRec = { id, name, request, top: root, git: isGit, owner, at: Date.now(), state: 'running' }
+  const split = cur.spawn === 'fg' ? await openSplit($, id, root) : undefined
+  if (split) rec.pane = split
   await $.store.set(`fork:${id}`, rec)
   await $.store.set(`forksOf:${owner}`, [...(await forkIds($)), id])
-  $.ui.toast(`Goyangi · ⑂ Forked to a background session${isGit ? '' : ' in this folder'} (claude attach ${id})`)
+  $.ui.toast(`Goyangi · ⑂ Forked to ${split ? (split.mux === 'window' ? 'a new window' : 'a split pane') : 'a background session'}${isGit ? '' : ' in this folder'} (claude attach ${id})${cur.spawn === 'fg' && !split ? ': no split pane could be opened here' : ''}`)
   await pollForks($)
 }
 // A finished fork in a repository: commit its worktree, then rebase onto the branch here and fast-forward. It waits while its files overlap
@@ -495,6 +555,7 @@ async function closeFork($: EngineInterface, r: ForkRec, discard = false) {
     await gitIn($, wt, 'reset', '-q', '--hard')
     await gitIn($, wt, 'clean', '-fdq')
   }
+  await closeSplit($, r.pane)
   const rm = (...extra: string[]) => $.process.run(['claude', 'rm', r.id, ...extra], { cwd: r.top, env: FORK_ENV, timeoutMs: 60_000 }).catch(() => undefined)
   const out = await rm()
   // Commits only on its branch are refused unless named: after a merge (or a discard) they are on the branch here, or meant to go
@@ -979,7 +1040,9 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
   const peerShown = others.slice(peerTop, peerTop + PEER_MAX)
   // Open sessions columns: names and hosts are padded to the widest shown, so the host and the folder start at the same cell in every row.
   const padTo = (t: string, w: number) => t + ' '.repeat(Math.max(0, w - displayWidth(t)))
-  const kindLead = (q: Peer) => (isAgent(q) ? q.kind.length + 1 : 0)
+  // The mark before a name: a coding agent's kind (codex), or bg for a Claude session that runs in the background (claude --bg, such as a fork)
+  const leadOf = (q: Peer) => (isAgent(q) ? q.kind : q.kind === 'background' ? 'bg' : '')
+  const kindLead = (q: Peer) => (leadOf(q) ? leadOf(q).length + 1 : 0)
   const colRows = [...(selfPeer ? [selfPeer] : []), ...peerShown]
   const nameW = Math.max(0, ...colRows.map(q => kindLead(q) + displayWidth(q.name)))
   const numW = Math.max(1, ...peerShown.map(q => String(q.num ?? '').length))
@@ -1378,7 +1441,7 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
   const pf = await read($, prefs)
   // The settings button opens or closes the screen (an overlay in the terminal, so the scroll stays where it is).
   const toggleSettings = () => toggleSettingsOf($)
-  const eff: Required<Prefs> = { ...base, ...pf }
+  const eff: Required<Prefs> = { ...base, ...withSpawn(pf) }
   const movePanel = () => movePanelOf($, eff)
   // Name cards for the header's right buttons: just the button's name, shown on the row right below the hovered button, aligned to the panel's right edge.
   const toggleView = () => quiet(savePrefs($, { view: VIEW_NEXT[eff.view] }))
@@ -1405,31 +1468,37 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
   const now = Date.now()
   const t0 = ft.turn.startedAt || ft.flow[0]?.startedAt || now
   const t1 = ft.turn.running ? now : Math.max(t0 + 1, ...ft.flow.map(i => i.endedAt ?? now))
-  const NODE_W = 20
+  const NODE_W = 18
   // The prompt node has only two rows, title and time, so it's drawn narrow to leave room for other columns.
   const PROMPT_W = 12
-  const ARROW_W = 4
+  // The arrow between boxes is 3 cells with no space after it; a running one moves its dot along those 3 cells.
+  const ARROW_W = 3
+  const flowArrow = (tick: number, active: boolean) => (active ? ['●─▶', '─●▶', '──●'][tick % 3]! : '──▶')
   // Branches to show per column when folded. Folding keeps only running and recent ones and groups the rest in a '+N earlier' row on top.
   const MAX_KIDS = 3
   const foldedCol = await read($, kidsFolded)
   const toggleKids = (id: string) => () => quiet(update($, kidsFolded, v => (v === id ? '' : id)))
   // While focused, drop model request columns that the agent doesn't hang from.
   const columns = flowColumns(focusFlow(ft.flow, fc)).filter(c => !fc || c.children.length > 0 || c.node.kind !== 'step')
-  const colW = (c: { node: FlowItem }) => (c.node.kind === 'prompt' ? PROMPT_W : NODE_W)
+  const colW = (c: { node: FlowItem }) => (c.node.kind === 'prompt' ? PROMPT_W : c.node.kind === 'answer' ? NODE_W + 2 : NODE_W)
   // Range of visible columns. If columns are hidden before or after, put one '◂ N prev' / 'N ▸ next' box in their place.
   // Columns differ in width, so add widths from end backward and include as many as fit.
   const fe = await read($, flowPage)
   const total = columns.length
-  const end = fe < 0 ? total : Math.max(1, Math.min(fe, total))
-  const laterCols = total - end
+  let end = fe < 0 ? total : Math.max(1, Math.min(fe, total))
+  let laterCols = total - end
   // Prev/next boxes show only the hidden column count and direction, so they're drawn narrow (border 2 + padding 2 + content 5 cells).
-  // Prev/next box: border and padding 4 + 'p: ◂ 12' (7 cells). Fits up to two digits on one row.
-  // Prev/next boxes stay narrow so the step boxes get the width: 'Prv' or 'Nxt' over the hidden count ('p: 14' in the terminal, where the hotkey shows)
+  // Prev/next: '<< Prv' (or 'Next >>') with the hidden count on the row below, ' <<' over 'Prv 6' ('>>' over 'Next 6') in an inner column so the two rows touch (spread directly in the stretched box they drift apart): only the Button row ('Prv 6') is clickable, so a hover colors just that text. No hotkey: the terminal would draw it as 'p: '.
   const PAGER_W = 7
   const pager = PAGER_W + ARROW_W
   let budget = treeW + ARROW_W - (laterCols > 0 ? pager : 0)
   let start = end
   while (start > 0 && budget >= colW(columns[start - 1]!) + ARROW_W) { budget -= colW(columns[start - 1]!) + ARROW_W; start-- }
+  // Nothing hidden in front and room left: the page's end moves on to take later columns too (the Next box's room stays while some remain)
+  if (start === 0) {
+    while (end < total && budget + (end + 1 === total ? pager : 0) >= colW(columns[end]!) + ARROW_W) { budget -= colW(columns[end]!) + ARROW_W; end++ }
+    laterCols = total - end
+  }
   // If columns remain hidden in front, make room for the earlier box. At least one column stays visible.
   while (start > 0 && budget < pager && start < end - 1) { budget += colW(columns[start]!) + ARROW_W; start++ }
   if (start === end && end > 0) start = end - 1
@@ -1459,10 +1528,9 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
   const turnOut = steps.reduce((a, i) => a + (i.tokOut ?? 0), 0)
   // Turn total: sum of session cost increases, including requests overlapping subagent requests. The flow chart holds only main requests, so the node sum falls short.
   const turnCost = (snap ? t.turns.find(x => x.id === vtId) : t.turns[t.turns.length - 1])?.cost
-  // Node box content, 5 rows: title, time and status, tokens (↑input ↓output), cache tokens, cost.
-  // An odd row count lets the arrows between boxes sit on the exact middle row.
-  const NODE_H = 7
-  // Node box height. The terminal fixes it at border 2 + content 5 rows. On desktop borders take no row, so 5 content rows is the min height.
+  // Node box content, 4 rows: title, time and status, tokens (↑input ↓output), cache tokens with cost.
+  const NODE_H = 6
+  // Node box height. The terminal fixes it at border 2 + content 4 rows. On desktop borders take no row, so 4 content rows is the min height.
   const nodeH = desk ? { minHeight: NODE_H - 2 } as const : { height: NODE_H } as const
   // Node box background: desktop lays a pale border color under it to separate boxes from each other and from the branch rows below. The terminal paints no background.
   const nodeHue = (col: { node: FlowItem }) => colorOf(col.node) ?? (col.node.id === heavy ? C.tool : col.node.kind === 'step' ? C.dim : C.main)
@@ -1471,7 +1539,7 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
     const dur = secs((i.endedAt ?? now) - i.startedAt)
     if (i.kind === 'prompt') return [i.hand ? `⇠ ${i.label}` : '▶ prompt', new Date(i.startedAt).toTimeString().slice(0, 8), '', '']
     if (i.kind === 'answer') return [i.ok ? '■ answer' : '■ ended', `${secs(t1 - t0)} ${i.ok ? '✓' : '✗'}`,
-      'turn', turnCost !== undefined ? `≈${usd(turnCost)} total` : '']
+      'turn', turnCost !== undefined ? `≈${usd(turnCost)} t` : '']
     const [title, rest] = i.label.split(' → ')
     // This request's share of the turn time. The stop reason is appended only when it isn't tool_use (mostly tool_use, so little information).
     const share = `${Math.round((((i.endedAt ?? now) - i.startedAt) / Math.max(1, t1 - t0)) * 100)}%`
@@ -1603,16 +1671,18 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
             const liveKid = kids.map(k => k.item.endedAt === undefined).lastIndexOf(true)
             const nextNode = shownCols[ci + 1]?.node
             const arrowLive = nextNode !== undefined && nextNode.endedAt === undefined && nextNode.kind === 'step'
-            // Node boxes, prev/next boxes, and arrows sit in one row. Prev/next boxes stretch to match the node box height,
+            // Node boxes, prev/next texts (no border), and arrows sit in one row. Prev/next texts stretch to match the node box height,
             // and arrows sit in the middle of that row. Matching with fixed heights or margins drifts on desktop, where cell and text line heights differ.
             const lastCol = ci === shownCols.length - 1
             return (
               <Box key={col.node.id} flexDirection="column">
                 <Box>
                   {ci === 0 && showPrev && [
-                    <Box key="flow-prev-box" flexShrink={0} flexDirection="column" borderStyle="round" {...(desk ? { borderColor: C.dim } : { borderDimColor: true })} width={PAGER_W} justifyContent="center" alignItems="center" hover={{ borderColor: C.main }}>
-                      <Text dimColor>Prv</Text>
-                      <Button key="flow-prev" hover={hovKey('flow-prev')} plain hotkey="p" label={`${hiddenCols}`} onPress={flowPrev} />
+                    <Box key="flow-prev-box" flexShrink={0} flexDirection="column" width={PAGER_W} justifyContent="center" alignItems="flex-start">
+                      <Box flexDirection="column" alignItems="flex-start" marginLeft={1}>
+                        <Text dimColor> &lt;&lt;</Text>
+                        <Button key="flow-prev" hover={hovKey('flow-prev')} plain dimColor label={`Prv ${hiddenCols}`} onPress={flowPrev} />
+                      </Box>
                     </Box>,
                     <Box key="flow-prev-arrow" alignSelf="center" width={ARROW_W} flexShrink={0}><Text dimColor>──▶</Text></Box>,
                   ]}
@@ -1620,28 +1690,29 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
                     <Text bold color={running ? C.tool : C.main} wrap="truncate">{title}</Text>
                     <Text dimColor wrap="truncate">{sub}</Text>
                     {(() => {
-                      // Row 3: ↑(new input) · ↓(output), row 4: ⟳(input read from cache), row 5: cost. Each in its own color.
-                      if (tok === '') return [<Text key="t3"> </Text>, <Text key="t4"> </Text>, <Text key="t5" color={TOK.cost} wrap="truncate">{cost || ' '}</Text>]
+                      // Row 3: ↑(new input) ↓(output), row 4: ⟳(input read from cache) and cost. Each in its own color.
+                      if (tok === '') return [<Text key="t3"> </Text>, <Text key="t4" color={TOK.cost} wrap="truncate">{cost || ' '}</Text>]
                       const [ti, tc, to] = tok === 'turn' ? [turnIn, turnCache, turnOut] : [col.node.tokIn ?? 0, col.node.tokCache ?? 0, col.node.tokOut ?? 0]
                       return [
                         <Text key="t3" wrap="truncate">
-                          <Text color={TOK.input}>↑ {fmtTok(ti)}</Text><Text dimColor> · </Text><Text color={TOK.output}>↓ {fmtTok(to)}</Text>
+                          <Text color={TOK.input}>↑ {fmtTok(ti)}</Text>{'  '}<Text color={TOK.output}>↓ {fmtTok(to)}</Text>
                         </Text>,
-                        <Text key="t4" color={TOK.cache} wrap="truncate">⟳ {fmtTok(tc)}</Text>,
-                        <Text key="t5" color={TOK.cost} wrap="truncate">{cost || ' '}</Text>,
+                        <Text key="t4" wrap="truncate"><Text color={TOK.cache}>⟳ {fmtTok(tc)}</Text>{cost && '  '}{cost && <Text color={TOK.cost}>{cost}</Text>}</Text>,
                       ]
                     })()}
                   </Box>
                   {!lastCol && (
                     <Box alignSelf="center" width={ARROW_W} flexShrink={0}>
-                      <Text color={arrowLive ? C.tool : C.dim}>{arrowFrame(n, arrowLive && busy)}</Text>
+                      <Text color={arrowLive ? C.tool : C.dim}>{flowArrow(n, arrowLive && busy)}</Text>
                     </Box>
                   )}
                   {lastCol && showNext && [
                     <Box key="flow-next-arrow" alignSelf="center" width={ARROW_W} flexShrink={0}><Text dimColor>──▶</Text></Box>,
-                    <Box key="flow-next-box" flexShrink={0} flexDirection="column" borderStyle="round" {...(desk ? { borderColor: C.dim } : { borderDimColor: true })} width={PAGER_W} justifyContent="center" alignItems="center" hover={{ borderColor: C.main }}>
-                      <Text dimColor>Nxt</Text>
-                      <Button key="flow-next" hover={hovKey('flow-next')} plain hotkey="n" label={`${laterCols}`} onPress={flowNext} />
+                    <Box key="flow-next-box" flexShrink={0} flexDirection="column" width={PAGER_W} justifyContent="center" alignItems="flex-start">
+                      <Box flexDirection="column" alignItems="flex-start">
+                        <Text dimColor>  &gt;&gt;</Text>
+                        <Button key="flow-next" hover={hovKey('flow-next')} plain dimColor label={`Next ${laterCols}`} onPress={flowNext} />
+                      </Box>
                     </Box>,
                   ]}
                 </Box>
@@ -2589,7 +2660,7 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
                 <Box key={`peer-${p.sessionId}`} justifyContent="space-between" gap={1}>
                   <Box flexShrink={1} minWidth={0}>
                     {isAgent(p) ? rowIcon(`agent:${p.kind}`, p.sessionId) : rowIcon('Claude', p.sessionId)}
-                    <Text wrap="truncate">{!isAgent(p) && !rowIcon('Claude', p.sessionId) && <Text color={CLAUDE_MARK}>✳ </Text>}<Text dimColor>{String(p.num ?? '').padEnd(numW)} </Text><Text color={p.status === 'busy' ? (n % 2 ? C.dim : C.tool) : p.status === 'input' ? C.fail : C.dim}>{p.status === 'busy' ? '●' : p.status === 'input' ? '!' : '○'}</Text> {isAgent(p) && <Text color={C.agent}>{p.kind} </Text>}<Text bold>{padTo(p.name, nameW - kindLead(p))}</Text>{hostW > 0 && <Text color={C.server}> {padTo(hostTag(p.host), hostW)}</Text>} <Text dimColor>{isAgent(p) ? '' : p.cwd.replace(/^\/Users\/[^/]+/, '~')}</Text></Text>
+                    <Text wrap="truncate">{!isAgent(p) && !rowIcon('Claude', p.sessionId) && <Text color={CLAUDE_MARK}>✳ </Text>}<Text dimColor>{String(p.num ?? '').padEnd(numW)} </Text><Text color={p.status === 'busy' ? (n % 2 ? C.dim : C.tool) : p.status === 'input' ? C.fail : C.dim}>{p.status === 'busy' ? '●' : p.status === 'input' ? '!' : '○'}</Text> {leadOf(p) && <Text color={C.agent}>{leadOf(p)} </Text>}<Text bold>{padTo(p.name, nameW - kindLead(p))}</Text>{hostW > 0 && <Text color={C.server}> {padTo(hostTag(p.host), hostW)}</Text>} <Text dimColor>{isAgent(p) ? '' : p.cwd.replace(/^\/Users\/[^/]+/, '~')}</Text></Text>
                   </Box>
                   <Box flexShrink={0} gap={1}>
                     {tip(`peer-send-${p.sessionId}`, <Button key={`peer-send-${p.sessionId}`} hover={hov(`peer-send-${p.sessionId}`)} plain label={pairLists ? '↑' : '→ send'} onPress={() => quiet(sendHandoff($, p.sessionId, p.name))} />, 'send', pairLists ? '↑' : '→ send')}
@@ -2778,7 +2849,7 @@ async function settingsScreen($: EngineInterface, e: RenderInput<'Pane' | 'Above
   const { Box, Text: RawText, Button: RawButton } = $.ui.resolve(e)
   const Text = inkText(inkMode(e), RawText)
   const Button = inkButton(inkMode(e), RawButton, Text)
-  const eff: Required<Prefs> = { ...base, ...(await read($, prefs)) }
+  const eff: Required<Prefs> = { ...base, ...withSpawn(await read($, prefs)) }
   const ch = characterOf(eff.character)
   const toggleSettings = () => toggleSettingsOf($)
   const setPref = (patch: Prefs) => () => quiet(savePrefs($, patch))
@@ -2794,6 +2865,10 @@ async function settingsScreen($: EngineInterface, e: RenderInput<'Pane' | 'Above
   const field = (key: NumKey, value: number, show: string) => Client
     ? <Client key={`num-${key}`} module="./numfield.tsx" props={{ setting: key, text: show, value: String(value), edit: editBg, cursor: C.agent, drop }} />
     : <Text bold>{show}</Text>
+  // The Spawn shortcut: one character that starts a prompt (numfield.tsx with a pattern that takes any one printable character but a space or /)
+  const keyField = (value: string) => Client
+    ? <Client key="num-spawnKey" module="./numfield.tsx" props={{ setting: 'spawnKey', text: value, value, edit: editBg, cursor: C.agent, drop, pattern: '^[^\\s/]$', max: 1, bracket: true }} />
+    : <Text bold>{`[ ${value} ]`}</Text>
   const stepper = (key: keyof typeof NUM_MAX, step: number, show: (v: number) => string) => (
     <Box gap={1}>
       <Button key={`dec-${key}`} hover={hov(`dec-${key}`)} plain label="−" onPress={setPref({ [key]: clampPref(key, eff[key] - step) })} />
@@ -2835,8 +2910,12 @@ async function settingsScreen($: EngineInterface, e: RenderInput<'Pane' | 'Above
     row('Panel position', (
         <Button key="set-position" hover={hov('set-position')} variant="primary" label={eff.position === 'bottom' ? 'Bottom (above prompt)' : 'Right'} onPress={movePanel} />
       )),
-    row("Fork with ';'", (
-      <Button key="set-fork" hover={hov('set-fork')} variant={eff.fork ? 'primary' : undefined} label={eff.fork ? 'On' : 'Off'} onPress={setPref({ fork: !eff.fork })} />
+    row('Spawn', (
+      <Box gap={1}>
+        <Button key="set-spawn" hover={hov('set-spawn')} variant={eff.spawn === 'off' ? undefined : 'primary'} label={eff.spawn === 'off' ? 'Off' : eff.spawn} onPress={setPref({ spawn: ({ off: 'bg', bg: 'fg', fg: 'off' } as const)[eff.spawn] })} />
+        {eff.spawn !== 'off' && <Text dimColor>shortcut</Text>}
+        {eff.spawn !== 'off' && keyField(eff.spawnKey)}
+      </Box>
     )),
     row('Fresh session at', stepper('freshAtK', 50, v => `${v}k`)),
     row('Idle hold', stepper('idleAlertMin', 30, v => `${v}m`)),
@@ -2924,6 +3003,8 @@ export const register: Register = (on, options) => {
     freshMode: 'ask',
     freshAtK: num(options.freshAtK, 200),
     fork: false,
+    spawn: 'off',
+    spawnKey: ';',
     icon: 'auto',
     idleAlertMin: num(options.idleAlertMin, 60),
     topicCheck: true,
@@ -2959,6 +3040,12 @@ export const register: Register = (on, options) => {
       name: 'sessions',
       description: 'The other open Claude Code sessions and coding agents (Codex, OpenCode, Aider and others running in cmux terminals), numbered as the Goyangi Open sessions box shows them; a session keeps its number for the rest of this session while others open or close, and a closed one\'s number is not reused. Use it when the person points at a session by number ("send this to session 2", "pull from 1", "1번 세션에서 2번으로"). action list: the numbered sessions. send: this session\'s handoff note goes to session `to`. pull: session `from` is asked for its handoff, which comes here, or to session `to` when given. A coding agent gets the note as a file it is told to read, and its handoff is the last 200 lines of its terminal.',
       inputSchema: { type: 'object', properties: { action: { type: 'string', enum: ['list', 'send', 'pull'] }, to: { type: 'integer', minimum: 1 }, from: { type: 'integer', minimum: 1 } }, required: ['action'] },
+      isDeferred: false,
+    }).catch(() => undefined)
+    await $.tool.register({
+      name: 'fork',
+      description: 'Start a request in a separate background session (a fork) that works in its own git worktree. Used after the person chose how the new session starts: pass summary of the current session for the compact start, leave it out for an empty start.',
+      inputSchema: { type: 'object', properties: { request: { type: 'string', description: 'The request, word for word' }, summary: { type: 'string', description: 'A short summary of this session, only for the compact start' } }, required: ['request'] },
       isDeferred: false,
     }).catch(() => undefined)
     // Move the dots only while running. Nothing is redrawn while idle.
@@ -3022,11 +3109,8 @@ export const register: Register = (on, options) => {
   // A pull request from another session's Goyangi (state.ts pullRequest) is answered here with this session's handoff, and dropped before it reaches the model
   on('prompt.submit', async ($, e, next) => {
     // A fork (; first): it runs in a background session and never reaches this one. Checked before the fresh-session hold, which would carry it as plain text
-    const req = e.origin.kind === 'composer' && cur.fork ? forkText(e.text) : undefined
-    if (req) {
-      quiet(startFork($, req))
-      return { drop: 'Goyangi runs this in a background session (fork)' }
-    }
+    const req = e.origin.kind === 'composer' && cur.spawn !== 'off' ? forkText(e.text, cur.spawnKey) : undefined
+    if (req) return next({ ...e, text: forkAsk(req) })
     // Auto fresh session with the note ready: the person's prompt is held back and goes to the new session, which /clear starts now
     if (e.origin.kind === 'composer' && cur.freshMode !== 'off' && (await read($, freshStage)) === 'ready') {
       const rec = await $.store.get('fresh').catch(() => undefined) as { file?: string } | null | undefined
@@ -3260,6 +3344,13 @@ export const register: Register = (on, options) => {
 
   // Goyangi's own tools answer after the recorder above, so their calls are drawn in the turn flow like any other tool (handlers run in registration order)
   on('tool.call', { tool: 'mcp__goyangi__browser_tabs' }, async ($, e) => ({ result: await tabsTool($, e as never) }) as never)
+  on('tool.call', { tool: 'mcp__goyangi__fork' }, async ($, e) => {
+    const { request, summary } = e as unknown as { request?: string; summary?: string }
+    if (cur.spawn === 'off') return { result: 'Spawn is off in the Goyangi settings, so nothing was started. Treat the prompt as ordinary text.' } as never
+    if (!request?.trim()) return { result: 'No request given.' } as never
+    quiet(startFork($, request.trim(), summary?.trim() || undefined))
+    return { result: 'Fork starting in a background session.' } as never
+  })
   on('tool.call', { tool: 'mcp__goyangi__sessions' }, async ($, e) => {
     // The tool's arguments sit on the event beside `tool`
     return { result: await sessionsTool($, e as never) } as never
@@ -3365,6 +3456,12 @@ export const register: Register = (on, options) => {
     const d = e.data as { list?: unknown; from?: unknown; setting?: unknown; value?: unknown; editing?: unknown }
     if (typeof d?.editing === 'boolean') { editAt = d.editing ? Date.now() : undefined; return {} }
     // A value typed into a settings number (numfield.tsx): saved clamped; text that isn't a number changes nothing
+    // The Spawn shortcut (numfield.tsx): one character, not a space or /
+    if (d?.setting === 'spawnKey') {
+      editAt = undefined
+      if (typeof d.value === 'string' && /^[^\s/]$/u.test(d.value)) quiet(savePrefs($, { spawnKey: d.value }))
+      return {}
+    }
     if (typeof d?.setting === 'string' && (d.setting in NUM_MAX || d.setting === 'sessionRows' || d.setting === 'tabRows')) {
       editAt = undefined
       const v = Number(d.value)

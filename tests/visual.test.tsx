@@ -891,7 +891,7 @@ test('desktop scrollbar: dragging moves the session log to that position, and th
   await ui.unmount()
 })
 
-test('turn flow node boxes: fixed 7 rows in the terminal; on desktop 5 content rows as min height with a pale border-colored background', async ($, on) => {
+test('turn flow node boxes: fixed 6 rows in the terminal; on desktop 4 content rows as min height with a pale border-colored background', async ($, on) => {
   mock.clock(on, { now: 1_700_000_000_000 })
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
   on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false } as never }))
@@ -903,9 +903,9 @@ test('turn flow node boxes: fixed 7 rows in the terminal; on desktop 5 content r
     const nodes = (await ui.findAll({ type: 'Box' })).filter(b => b.props.borderStyle === 'round' && b.props.justifyContent === 'center')
     expect(nodes.length).toBeGreaterThan(0)
     for (const b of nodes) {
-      if (surface === 'terminal') expect(b.props).toMatchObject({ height: 7 })
+      if (surface === 'terminal') expect(b.props).toMatchObject({ height: 6 })
       else {
-        expect(b.props).toMatchObject({ minHeight: 5 })
+        expect(b.props).toMatchObject({ minHeight: 4 })
         expect(String(b.props.backgroundColor)).toMatch(/^#[0-9a-f]{6}1a$/i)
       }
     }

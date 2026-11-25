@@ -21,11 +21,15 @@ test('fork helpers: ; marks a fork, the bg id, the brief, the FORK DONE line, an
   expect(forkText(';fix the typo')).toBe('fix the typo')
   expect(forkText('; fix it ')).toBe('fix it')
   expect(forkText(';')).toBeUndefined()
+  expect(forkText('>fix it', '>')).toBe('fix it')
+  expect(forkText(';fix it', '>')).toBeUndefined()
   expect(forkText('fix it; then test')).toBeUndefined()
   expect(bgId('Starting background service…\nbackgrounded · df508702\n  claude agents')).toBe('df508702')
   expect(bgId('Workspace not trusted.')).toBeUndefined()
   expect(forkBrief('fix it', true)).toContain('Do not commit')
   expect(forkBrief('fix it', false)).toContain('same folder')
+  expect(forkBrief('fix it', true)).not.toContain('Summary of the session')
+  expect(forkBrief('fix it', true, 'Goal: x')).toContain('Goal: x')
   expect(forkDone('done\nFORK DONE: pass')).toEqual({ ok: true, reason: '' })
   expect(forkDone('FORK DONE: fail tests broke')).toEqual({ ok: false, reason: 'tests broke' })
   expect(forkDone('still working')).toBeUndefined()
@@ -67,13 +71,19 @@ test('fork: a ; prompt never reaches the model, starts claude --bg in a worktree
   await $.session.start({ cwd: '/repo/sub', source: 'startup' } as never)
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
 
-  // The ; prompt is dropped here and runs in a background session, in a worktree of the repository's top folder
+  // The ; prompt reaches the model as an instruction to ask how the new session starts (AskUserQuestion), then to call the fork tool
   await $.prompt.submit({ text: ';fix the typo in README', origin: { kind: 'composer' } } as never)
+  expect(prompts).toHaveLength(1)
+  expect(prompts[0]).toContain('AskUserQuestion')
+  expect(prompts[0]).toContain('fix the typo in README')
+  expect(runs.some(r => r[0] === 'claude' && r[1] === '--bg')).toBe(false)
+  // The fork tool runs it in a background session, in a worktree of the repository's top folder, with the summary when the person chose the compact start
+  await $.tool.call({ tool: 'mcp__goyangi__fork', request: 'fix the typo in README', summary: 'Goal: docs cleanup' } as never)
   await until($, () => data['fork:df508702'])
-  expect(prompts).toEqual([])
   const bg = runs.find(r => r[0] === 'claude' && r[1] === '--bg')!
   expect(bg.slice(0, 3)).toEqual(['claude', '--bg', '-w'])
   expect(bg.at(-1)).toContain('fix the typo in README')
+  expect(bg.at(-1)).toContain('Goal: docs cleanup')
   expect(data['fork:df508702']).toMatchObject({ id: 'df508702', top: '/repo', git: true, state: 'running', request: 'fix the typo in README' })
   expect(data['forksOf:aaaa1111-0000-0000-0000-000000000000']).toEqual(['df508702'])
   const branch = `worktree-${(data['fork:df508702'] as { name: string }).name}`
@@ -92,7 +102,7 @@ test('fork: a ; prompt never reaches the model, starts claude --bg in a worktree
   delete data['forkAsk:df508702']
   data['forkDone:df508702'] = { ok: true, reason: '' }
   await $.prompt.submit({ text: 'ordinary prompt', origin: { kind: 'composer' } } as never)
-  expect(prompts).toEqual(['ordinary prompt'])
+  expect(prompts.slice(1)).toEqual(['ordinary prompt'])
   await clock.advance(3000)
   await until($, () => toasts.some(t => t.includes('Merged')))
   const git = runs.filter(r => r[0] === 'git').map(r => r.slice(3).join(' '))
@@ -191,4 +201,72 @@ test('fork: after /clear the session takes over the forks listed under its old i
   expect(data['forksOf:new']).toEqual(['df508702'])
   expect(data['forksOf:old']).toBeNull()
   expect(data['fork:df508702']).toMatchObject({ owner: 'new' })
+})
+
+// Spawn fg: after claude --bg, a split pane attaches to the session. The innermost multiplexer wins (herdr, then tmux, then cmux); with none, it runs in the background and says so.
+for (const [name, env, expected] of [
+  ['herdr', { HERDR_PANE_ID: 'w1:p4', TMUX_PANE: '%1', CMUX_SURFACE_ID: 'S' }, [['herdr', 'pane', 'split', '--pane', 'w1:p4', '--direction', 'down', '--cwd', '/repo', '--no-focus'], ['herdr', 'pane', 'run', 'w1:p9', 'claude attach df508702']]],
+  ['tmux', { TMUX_PANE: '%1', CMUX_SURFACE_ID: 'S' }, [['tmux', 'split-window', '-v', '-d', '-P', '-F', '#{pane_id}', '-t', '%1', '-c', '/repo', 'claude attach df508702']]],
+  ['cmux', { CMUX_SURFACE_ID: 'S' }, [['cmux', 'new-split', 'down', '--surface', 'S'], ['cmux', 'send', '--surface', 'surface:8', 'claude attach df508702'], ['cmux', 'send-key', '--surface', 'surface:8', 'enter']]],
+  ['cmux-compact', { CMUX_SURFACE_ID: 'S' }, [['cmux', 'new-split', 'right', '--surface', 'S'], ['cmux', 'send', '--surface', 'surface:8', 'claude attach df508702'], ['cmux', 'send-key', '--surface', 'surface:8', 'enter']]],
+  ['none', {}, [['osascript', '-e', 'tell application "Terminal"', '-e', 'activate', '-e', 'do script "cd \'/repo\' && claude attach df508702"', '-e', 'end tell']]],
+] as const) {
+  test(`fork fg: ${name} ${name === 'none' ? 'opens a Terminal window when no split is possible' : 'opens a split pane that attaches to the fork'}`, async ($, on) => {
+    mock.clock(on, { now: 1_700_000_000_000 })
+    const data: Record<string, unknown> = { prefs: { spawn: 'fg', spawnKey: '>', ...(name === 'cmux-compact' ? { view: 'compact' } : {}) } }
+    sharedStore(on, data)
+    on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000, percent: 10 }, rateLimits: [] } }))
+    on('session.id', () => ({ value: 'aaaa1111-0000-0000-0000-000000000000' }) as never)
+    on('session.cwd', () => ({ value: '/repo' }) as never)
+    on('session.start', ($, e) => ({ cwd: (e as { cwd: string }).cwd }) as never)
+    on('command.register', () => ({ value: undefined }) as never)
+    on('tool.register', () => ({ value: { tool: 'x' } }) as never)
+    on('env.get', ($, e) => ({ value: (env as Record<string, string>)[(e as { name: string }).name] }) as never)
+    on('prompt.submit', (_$, e) => ({ text: (e as { text: string }).text }) as never)
+    const toasts: string[] = []
+    on('ui.toast', ($, e) => { toasts.push((e as { text: string }).text); return { value: undefined } as never })
+    const runs: string[][] = []
+    on('process.run', ($, e) => {
+      const argv = (e as { argv: string[] }).argv
+      runs.push(argv)
+      const a = argv.join(' ')
+      const out = (stdout: string, exitCode = 0) => ({ value: { exitCode, stdout, stderr: '' } }) as never
+      if (a.includes('rev-parse --show-toplevel')) return out('/repo\n')
+      if (argv[0] === 'claude' && argv[1] === '--bg') return out('backgrounded · df508702\n')
+      if (argv[0] === 'herdr' && argv[2] === 'split') return out('{"result":{"pane":{"pane_id":"w1:p9"}}}')
+      if (argv[0] === 'uname') return out('Darwin\n')
+      if (argv[0] === 'osascript') return out('tab 1 of window id 722\n')
+      if (argv[0] === 'tmux' && argv[1] === 'split-window') return out('%7\n')
+      if (argv[0] === 'cmux' && argv[1] === 'new-split') return out('OK surface:8 workspace:1\n')
+      return out('')
+    })
+    await $.session.start({ cwd: '/repo', source: 'startup' } as never)
+    // ; no longer starts a fork once the shortcut is >
+    await $.prompt.submit({ text: ';ignored', origin: { kind: 'composer' } } as never)
+    expect(runs.some(r => r[0] === 'claude' && r[1] === '--bg')).toBe(false)
+    await $.prompt.submit({ text: '>fix the typo', origin: { kind: 'composer' } } as never)
+    await $.tool.call({ tool: 'mcp__goyangi__fork', request: 'fix the typo' } as never)
+    await until($, () => data['fork:df508702'])
+    await until($, () => toasts.some(t => t.includes('Forked')))
+    expect(runs.filter(r => (['herdr', 'tmux', 'cmux'].includes(r[0]!) && r[1] !== 'top') || (r[0] === 'osascript' && r[2] === 'tell application "Terminal"'))).toEqual(expected)
+    const rec = data['fork:df508702'] as { pane?: { mux: string; ref: string } }
+    expect(rec.pane).toEqual({ herdr: { mux: 'herdr', ref: 'w1:p9' }, tmux: { mux: 'tmux', ref: '%7' }, cmux: { mux: 'cmux', ref: 'surface:8' }, 'cmux-compact': { mux: 'cmux', ref: 'surface:8' }, none: { mux: 'window', ref: '722' } }[name])
+    expect(toasts.some(t => t.includes(name === 'none' ? 'a new window' : 'split pane'))).toBe(true)
+  })
+}
+
+test('fork tool: with Spawn off it starts nothing', async ($, on) => {
+  const data: Record<string, unknown> = { prefs: { spawn: 'off' } }
+  sharedStore(on, data)
+  on('session.id', () => ({ value: 'aaaa1111-0000-0000-0000-000000000000' }) as never)
+  on('session.cwd', () => ({ value: '/repo' }) as never)
+  on('session.start', ($, e) => ({ cwd: (e as { cwd: string }).cwd }) as never)
+  on('command.register', () => ({ value: undefined }) as never)
+  on('tool.register', () => ({ value: { tool: 'x' } }) as never)
+  const runs: string[][] = []
+  on('process.run', ($, e) => { runs.push((e as { argv: string[] }).argv); return { value: { exitCode: 0, stdout: '', stderr: '' } } as never })
+  await $.session.start({ cwd: '/repo', source: 'startup' } as never)
+  const r = await $.tool.call({ tool: 'mcp__goyangi__fork', request: 'x' } as never)
+  expect(String(r.result)).toContain('Spawn is off')
+  expect(runs.some(a => a[0] === 'claude' && a[1] === '--bg')).toBe(false)
 })

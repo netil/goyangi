@@ -138,9 +138,9 @@ test('hover cards inside flow chart columns and subagent boxes stay within their
   await tick()
   const ui = await $.ui.mount(PANE)
   const cards = (await ui.findAll({ type: 'Box' })).map(b => b.props as { position?: string; bottom?: number; top?: number; width?: number }).filter(p => p.position === 'absolute' && (p.bottom === 1 || [1, 2, 3].includes(p.top ?? 0)))
-  // The intent row card is within the node width (20); the subagent box card within the box's inner width
+  // The intent row card is within the node width (18); the subagent box card within the box's inner width
   const widths = cards.map(c => c.width ?? 0)
-  expect(widths).toContain(20)
-  expect(widths.some(w => w > 20 && w < 30)).toBe(true)
+  expect(widths).toContain(18)
+  expect(widths.some(w => w > 18 && w < 30)).toBe(true)
   await ui.unmount()
 })

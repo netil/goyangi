@@ -92,7 +92,7 @@ test('per-step tokens and cost (increase of the session running cost) show in th
   expect(await ui.find({ text: /^⟳ 9k$/ })).toBeDefined()
   expect(await ui.find({ text: /^↓ 2k$/ })).toBeDefined()
   expect(await ui.find({ text: /^≈\$0\.25$/ })).toBeDefined()
-  expect(await ui.find({ text: /≈\$0\.25 total/ })).toBeDefined()
+  expect(await ui.find({ text: /≈\$0\.25 t$/ })).toBeDefined()
   await ui.unmount()
 })
 
@@ -127,14 +127,14 @@ test('flow chart navigation: earlier goes to previous steps, later to next steps
   })
   await $.turn.start({ text: 'many steps', turnId: 't1' } as never)
   for (let i = 0; i < 12; i++) for await (const _ of $.turn.step({ turnId: 't1', index: i, model: 'opus', messageCount: 1 } as never)) { /* drain */ }
-  // Only recent steps fit the body width; earlier ones fold into a 'Prv / N' box
+  // Only recent steps fit the body width; earlier ones fold into a '<< Prv' over N
   const ui = await $.ui.mount({ ...PANE, props: { bodyColumns: 102 } as never, viewport: { columns: 140, rows: 60 } as never })
   const has = async (k: number) => !!(await ui.find({ type: 'Text', text: new RegExp(`^◆ step ${k}$`) }))
   expect(await has(12)).toBe(true)
   expect(await has(8)).toBe(false)
-  expect(await ui.find({ type: 'Button', key: 'flow-prev', text: /^\d+$/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /^Prv$/ })).toBeDefined()
-  // Prev/next boxes are 7 cells wide ('p: 12' in the terminal) so the step boxes keep the width.
+  expect(await ui.find({ type: 'Button', key: 'flow-prev' })).toBeDefined()
+  expect(await ui.find({ type: 'Button', key: 'flow-prev', text: /^Prv \d+$/ })).toBeDefined()
+  // Prev/next are 7 cells wide ('<< Prv' over 'p: 12' in the terminal) so the step boxes keep the width.
   expect((await ui.findAll({ type: 'Box' })).some(b => (b.props as { width?: number }).width === 7)).toBe(true)
 
   await ui.press({ key: 'flow-prev' })

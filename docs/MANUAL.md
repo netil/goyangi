@@ -78,7 +78,7 @@ How the turn unfolded (`f`).
 - Time bar: model, tool, subagent, and wait
 - Step boxes: one per model request with time, tokens, and cost. Branches below are the tools and subagents it called
 - Branch marks: `◐` running, `⏳` possibly stalled, `✓` success, `✗` failure, `∥` parallel, `⚠×2` repeated failure
-- Long turns fold into `Prv` and `Nxt` boxes. Move with `p` and `n`
+- Long turns fold into `<< Prv N` and `Next N >>` texts at the ends of the row (N is the number of hidden steps). Click one to move
 
 ### Walk view
 
@@ -114,7 +114,7 @@ One box per running subagent (`s`): type, status, recent tools, tool count, toke
 
 ### Forks
 
-With **Fork with ';'** on, a prompt that starts with `;` doesn't go to this session. It runs in a background session (`claude --bg`) while this one keeps working:
+With **Spawn** on (`bg` or `fg`), a prompt that starts with the Spawn shortcut (`;` at first, changeable in the settings screen) doesn't run in this session. The model first asks how the new session starts (**Compact summary + new session**, which hands over a summary of this session, or **New session**, which starts empty), then the request runs in a background session (`claude --bg`) while this one keeps working. With Spawn `Off`, `;` is an ordinary character:
 
 ```
 ;fix the typo in the README
@@ -123,8 +123,10 @@ With **Fork with ';'** on, a prompt that starts with `;` doesn't go to this sess
 - In a git repository the fork gets its own worktree (`.claude/worktrees/fork-…`, branch `worktree-fork-…`), so its edits never touch the files here. Elsewhere it works in this same folder and its row says `same folder`
 - Each fork is a row in the top box: `⑂ fix the typo… · running 2m`. `⧉ attach` copies `claude attach <id>`, which opens the fork in another terminal
 - When the fork needs a permission, its row shows the request (`Bash: npm test`) with `Allow` and `Deny`. Nothing answered in 10 minutes is denied
+- `fg` also opens a split pane that attaches to the fork (`claude attach <id>`): below this one when the panel is on the right, else beside it, in herdr, tmux or cmux. Without them a new Terminal window opens on macOS. The pane or window closes when the fork is merged or discarded
+- Open sessions marks background sessions with `bg`
 - The fork is told not to ask questions, to run the tests, and to end with `FORK DONE: pass` or `FORK DONE: fail <reason>`
-- On pass, Goyangi commits the worktree with the request as the message, rebases it onto the branch here, and fast-forwards. Turning Fork with ';' on is your leave for that commit. Then it removes the fork's session, worktree, and branch, and says `⑂ Merged (a1b2c3d)`
+- On pass, Goyangi commits the worktree with the request as the message, rebases it onto the branch here, and fast-forwards. Turning Spawn on is your leave for that commit. Then it removes the fork's session, worktree, and branch, and says `⑂ Merged (a1b2c3d)`
 - It waits (`waits: <files> changed here too`) while the fork's files have uncommitted changes here, and stops on a failed rebase or a failed fork, keeping the worktree. `✕ discard` drops the fork and its changes
 - Outside a repository there is nothing to merge: the fork's row goes away when it reports done
 
@@ -222,7 +224,7 @@ Press `=` in the header (`⚙` on desktop). Changes apply immediately and persis
 | Fresh session at | `−` / `+`, steps of 50k tokens | 200k |
 | Idle hold | `−` / `+`, steps of 30 minutes | 60m |
 | Topic check | `On` / `Off` | On |
-| Fork with ';' | `On` / `Off` | Off |
+| Spawn | `Off` / `bg` / `fg`, one button that cycles; with `bg` or `fg` a `[ ; ]` field sets the shortcut | Off |
 | Refresh icon | `Auto` / `Nerd Font` / `Unicode ↺` / `ASCII R` | Auto |
 | Open sessions rows | `−` / `+`, 1 to 10 | 4 |
 | Browser tabs rows | `−` / `+`, 1 to 10 | 4 |

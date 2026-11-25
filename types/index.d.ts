@@ -75,14 +75,14 @@ export type SessionTurn = { id: string; prompt: string; startedAt: number; ended
 // view: what to draw in the turn flow's place. default is the flow chart, avatar the walk where pixel characters run along the steps (the value name is kept to match saved settings),
 // compact the minimized view's two rows (step track, then status and counts)
 // idleAlertMin: minutes since the last turn after which a prompt is held once (0 off). topicCheck: hold a prompt a small model reads as unrelated to the earlier ones.
-export type Prefs = { autoOpen?: boolean; ctxAlertPercent?: number; turnCostAlertUsd?: number; stallSeconds?: number; position?: 'right' | 'bottom'; autoUpdate?: boolean; view?: 'default' | 'avatar' | 'compact'; character?: 'cat' | 'dog'; sessionRows?: number; tabRows?: number; freshMode?: 'off' | 'ask' | 'auto'; freshAtK?: number; fork?: boolean; icon?: 'auto' | 'nerd' | 'unicode' | 'ascii'; idleAlertMin?: number; topicCheck?: boolean }
+export type Prefs = { autoOpen?: boolean; ctxAlertPercent?: number; turnCostAlertUsd?: number; stallSeconds?: number; position?: 'right' | 'bottom'; autoUpdate?: boolean; view?: 'default' | 'avatar' | 'compact'; character?: 'cat' | 'dog'; sessionRows?: number; tabRows?: number; freshMode?: 'off' | 'ask' | 'auto'; freshAtK?: number; fork?: boolean; spawn?: 'off' | 'bg' | 'fg'; spawnKey?: string; icon?: 'auto' | 'nerd' | 'unicode' | 'ascii'; idleAlertMin?: number; topicCheck?: boolean }
 // An open Claude Code session on this machine (from `claude agents --json`), and the list the panel shows with this session's id
 // host: the app the session runs in (Claude for the desktop app, cmux, Ghostty, iTerm2, ...), read from its process's ancestors; pid locates it
 export type Peer = { sessionId: string; name: string; cwd: string; status: string; kind: string; pid?: number; host?: string; num?: number }
 export type Peers = { self: string; list: Peer[] }
 // A fork (a ; prompt run in a background session), as the forking session keeps it in $.store under fork:<id>. id is the background session's short id.
 // state: running, wait (its files overlap uncommitted changes here), conflict (its rebase failed), fail (it reported a failure), merged or done (no git).
-export type ForkRec = { id: string; name: string; request: string; top: string; git: boolean; owner: string; at: number; state: 'running' | 'wait' | 'conflict' | 'fail' | 'merged' | 'done'; note?: string }
+export type ForkRec = { id: string; name: string; request: string; top: string; git: boolean; owner: string; at: number; state: 'running' | 'wait' | 'conflict' | 'fail' | 'merged' | 'done'; note?: string; pane?: { mux: 'herdr' | 'tmux' | 'cmux' | 'window'; ref: string } }
 // A permission request the fork waits on (forkAsk:<id>), and the answer the forking session writes back (forkAnswer:<id>) for the same n
 export type ForkAsk = { n: number; line: string; at: number }
 export type ForkView = ForkRec & { ask?: ForkAsk }
