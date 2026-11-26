@@ -1,6 +1,7 @@
 // Layout check: renders the terminal panel with Ink at several widths and reports rows wider than the panel and Box props the engine refuses.
 // The engine draws with its own Ink-based renderer, so this approximates it (colors and emoji widths aside); the test kit can't paint.
 // Usage (from this folder, after npm install): node check.mjs [widths...]   e.g. node check.mjs 26 40 60
+//   TERM_KIND=ghostty|wezterm|herdr|iterm (default: iterm, quadrant blocks and emoji logo) picks the environment variables the terminal sets. `npm run matrix` runs every kind and mode.
 //   VIEW=avatar for the walk view, SETTINGS=1 with the settings screen open, MODE=band for the minimized view, FRAMES=1 to print every frame.
 import * as esbuild from 'esbuild'
 import React from 'react'
@@ -30,13 +31,20 @@ const on = (name, ...args) => { hooks[name + (args.length > 1 ? JSON.stringify(a
 mod.register(on, {})
 
 const noop = async () => undefined
+// Environment variables each terminal sets (state.ts termArt: image, octant, quadrant).
+const TERMS = {
+  ghostty: { TERM: 'xterm-ghostty', TERM_PROGRAM: 'ghostty' },
+  wezterm: { TERM_PROGRAM: 'WezTerm', WEZTERM_EXECUTABLE: '/x' },
+  herdr: { TERM_PROGRAM: 'herdr', HERDR_ENV: '1' },
+  iterm: { TERM_PROGRAM: 'iTerm.app' },
+}
 const now = Date.now()
 const $ = {
   values: new Map(),
   session: { usage: async () => ({ startedAt: 1, cost: { usd: 1.23 }, context: { percent: 58, window: 200000 },
     rateLimits: [{ kind: 'five_hour', percentUsed: 52, resetsAt: now + 3600e3 }, { kind: 'seven_day', percentUsed: 15, resetsAt: now + 86400e3 }] }) },
   ui: { toast() {}, open: noop, close: noop, invalidate() {} }, store: { set: noop, get: noop }, command: { register: noop }, tool: { register: noop },
-  env: { get: noop }, process: { run: async () => ({ stdout: '' }) }, clock: { every: () => {} }, config: { list: async () => [] },
+  env: { get: async k => TERMS[process.env.TERM_KIND ?? 'iterm']?.[k] }, process: { run: async () => ({ stdout: '' }) }, clock: { every: () => {} }, config: { list: async () => [] },
   fs: { read: async () => JSON.stringify({ version: '1.0.0' }) }, plugin: { root: ROOT },
 }
 

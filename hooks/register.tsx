@@ -5,10 +5,13 @@ import {
   addLog, addDiff, lineDelta, addServer, arrowFrame, bar, branchLines, bump, displayWidth, ellipsis, joinLines, usd, logWindow, countTool, describeAgent, emptyTree, ended, fit, flowColumns, flowEnd, flowStart, fmtTok, isBusy, runs, toolClass, turnBegin, turnMark,
   patchLoop, secs, summarize, toolEnd, toolStart, topTools, visibleAgents, who,
   toolErr, noteFail, addToolTime, slowTools, ctxLevel, focusFlow, stepOpen, spawnOrigin, returnTarget, headState,
-  shouldCheckUpdate, updatedVersion, freshDue, FRESH_FULL, idleDue, topicAsk, topicNew, topicSkip, holdMinK, forkText, bgId, forkBrief, forkDone, askLine, deskOf, CHARACTERS, characterOf, look as LOOK, dotRows, dotSvg, dotRgba, pixelTerminal, octantTerminal, iconKind, REFRESH_ICON, dotScene, flagShapes, flagSvg, parsePeers, parseAgents, appOf, hostTag, parseTabs, findTabs, stick, treeRows, handoffLabel, handoffSid, tabsScript, firefoxCmd, firefoxFocus, BROWSERS, pickBrowsers, isAgent, cmuxTarget, screenState, handoffNote, pullRequest, pullFrom, handoffFrom, sprite, miniSprite, petMood, petPixels, overlay, faceKeep, replayAt, costMark, prop, stations,
-  WINDOW_MS, limitEta, isStalled, cacheDropped, ctxParts, upsertRecord, historySummary, pickKids,
+  shouldCheckUpdate, updatedVersion, freshDue, FRESH_FULL, idleDue, topicAsk, topicNew, topicSkip, holdMinK, forkText, bgId, forkBrief, forkDone, askLine, deskOf, CHARACTERS, characterOf, look as LOOK, dotRows, dotSvg, dotRgba, pixelTerminal, octantTerminal, termArt, iconKind, REFRESH_ICON, dotScene, flagShapes, flagSvg, parsePeers, parseAgents, appOf, hostTag, parseTabs, findTabs, stick, treeRows, handoffLabel, handoffSid, tabsScript, firefoxCmd, firefoxFocus, BROWSERS, pickBrowsers, isAgent, cmuxTarget, screenState, handoffNote, pullRequest, pullFrom, handoffFrom, sprite, miniSprite, petMood, petPixels, overlay, faceKeep, replayAt, costMark, prop, stations,
+  WINDOW_MS, limitEta, isStalled, cacheDropped, ctxParts, upsertRecord, historySummary, topTurns, sessionSummary, pickKids,
   miniTrack, firstLine, toolResult, addFile, timeStrip, overlaps, archiveTurn, mapTokens, weightBar, timeShares, shareWidths, advise, isKeyLog, brailleSpark, lineGauge, rowCard, wrapLines, resumed, scopeKey,
 } from './state'
+import { TOK, C, M, MARK, KEY_HI, IMG_SCALE, FOOT_H, FOOT_LABEL_W, SETTING_W, DESK_HEAD_H, DESK_BASE, VIEW_NEXT, VIEW_NAME, CARD_MAX, SAID_MAX, CONTINUE, SPIN, TITLE, ICON, KIND, BOX_ROWS, LOG_ROWS, MAP_ROWS, FLOW_H, HEAD_CHIP_W, CLOSE_HOVER, hov, HOTKEY_ACCENT, hovKey, WIDE } from './theme'
+import { STATE_CHIP, stateChip, trackParts, loopCounts } from './chips'
+import { colorMode, mixWhite, indexedBg, indexedTint, midColor } from './color'
 import type { Browser, DotSeg, Pose, Station, StepMark } from './state'
 
 const PANE = 'goyangi'
@@ -80,65 +83,6 @@ const peerFrom = atom({ plugin: 'goyangi', key: 'peerFrom' } as const, 0)
 const tabFrom = atom({ plugin: 'goyangi', key: 'tabFrom' } as const, 0)
 const fold = atom({ plugin: 'goyangi', key: 'fold' } as const, { all: false, side: false, map: false, flow: false, agents: false, log: false })
 
-// Token colors: Claude Code theme colors, so they match other Claude Code screens and follow light/dark themes.
-// ↑(new input)=suggestion, ⟳(cache read)=permission, ↓(output)=claude, cost=warning
-const TOK = { input: 'suggestion', cache: 'permission', output: 'claude', cost: 'warning' }
-const C = { main: '#7dd3a8', agent: '#8ab4f8', tool: '#f6c177', server: '#c4a7e7', dim: '#6b7280', fail: '#f28b82' }
-// Session metric colors: used both in the header (inverted background) and the folded row (normal background). Only mid-brightness
-// colors are picked so they read on both white and black (contrast 3:1 or more on both).
-const M = { turn: '#3b82f6', steps: '#8b5cf6', tools: '#0d9488', cost: '#d97706' }
-// Header title color: the main loop green (C.main) lowered to mid brightness
-// Session map tool marks: glyph and color per tool class (also used by the minimized track)
-const MARK: Record<string, { g: string; c: string; name?: string }> = {
-  '>': { g: '▶', c: C.main }, '|': { g: '│', c: C.dim }, '#': { g: '■', c: C.main },
-  b: { g: '■', c: '#f6c177', name: 'Bash' }, r: { g: '■', c: '#9ccfd8', name: 'Read' },
-  e: { g: '■', c: '#eb6f92', name: 'Edit' }, s: { g: '■', c: '#c4a7e7', name: 'Search' },
-  w: { g: '■', c: '#73daca', name: 'Web' }, m: { g: '■', c: '#e0af68', name: 'MCP' }, h: { g: '⇄', c: C.server, name: 'Handoff' },
-  k: { g: '■', c: '#ff9e64', name: 'Skill' }, a: { g: '⑂', c: C.agent, name: 'Agent' }, o: { g: '■', c: '#a9b1d6', name: 'other' },
-  '!': { g: '!', c: C.fail, name: 'repeat fail' }, c: { g: '◇', c: C.server, name: 'compact' },
-}
-const KEY_HI = 'text' // Shortcut keys in the footer: the theme text color reads darker than dim text on light or dark backgrounds
-// ponytail: terminal Image sends each dot as 8 × 8 pixels (one character is 128 × 128, about 87KB). Raise it if cells are larger on Retina.
-const IMG_SCALE = 8
-const FOOT_H = 3 // Footer rows: sections, panel, keys
-const FOOT_LABEL_W = 9 // Width of the leading name (section, panel) on footer rows
-const SETTING_W = 48 // One settings item: the name (22), a gap, and the widest control ('[ Bottom (above prompt) ]', 25)
-// Desktop header: rows its spacer takes in the flow (the app's default buttons are taller than a text row, plus a gap), and the opaque base painted
-// under positioned layers there (sticky header, settings overlay), since desktop tints are translucent. inverseText is the theme's background-side color.
-const DESK_HEAD_H = 2
-const DESK_BASE = 'inverseText'
-// Views drawn in the turn flow's place, in the order v and the settings View row cycle through them
-const VIEW_NEXT = { default: 'avatar', avatar: 'compact', compact: 'default' } as const
-const VIEW_NAME = { default: 'Turn flow', avatar: 'Walk', compact: 'Compact' } as const
-const CARD_MAX = 300 // Max characters carried in a hidden card
-const SAID_MAX = 2000 // Length of the response head collected to extract the intent line
-const CONTINUE = '(continued without input)' // Prompt shown for a turn started without input
-const SPIN = ['·', '✢', '✳', '✶', '✻', '✽', '✻', '✶', '✳', '✢'] // In-flight request glyphs: the same characters as Claude Code's spinner, cycled back and forth
-const TITLE = '#1e3a8a' // Logo chip background: deep blue (the mostly white telescope emoji and white text both stay crisp)
-const ICON: Record<Loop['status'], string> = { idle: '○', thinking: '◐', tool: '⚙', done: '✓', failed: '✗' }
-const KIND: Record<LogKind, { icon: string; color: string }> = {
-  prompt: { icon: '▶', color: C.main }, step: { icon: '◆', color: C.dim }, tool: { icon: '⚙', color: C.tool },
-  agent: { icon: '⑂', color: C.agent }, answer: { icon: '■', color: C.main }, server: { icon: '✦', color: C.server },
-  compact: { icon: '◇', color: C.server },
-}
-const BOX_ROWS = 6
-const LOG_ROWS = 4 // Minimum session log height
-const MAP_ROWS = 4 // Minimum session map height (height when shrunk with ⇕)
-// Rows the turn flow is estimated to take in the vertical split: header 3 + step box 7 + branches 3 + progress 1 + subagent title and return box 4
-const FLOW_H = 18
-// Header button chips are a fixed 3 cells each (icon with a space on either side), not measured from their text.
-const HEAD_CHIP_W = 3
-// Close button on hover: black background, white text. The engine inverts a button under the pointer on top of its hover style,
-// so the style is given pre-inverted (white background, black text).
-const CLOSE_HOVER = { color: '#000000', backgroundColor: '#ffffff' } as const
-// Hovering a button turns its text bold and underlined. The terminal decides the pointer shape and mods can't change it, so this marks what's clickable.
-// A Button's hover only applies inside a keyed box or with a scope, so each button gets its own scope.
-const hov = (key: string) => ({ scope: scopeKey('btn-', key), bold: true, underline: true }) as const
-// Buttons with a hotkey: the engine draws the hotkey in its accent color and inverts the whole button under the pointer, so the hotkey cell
-// came out on a different background from the label. Coloring the label with the same theme color on hover makes both invert to one background.
-const HOTKEY_ACCENT = 'suggestion'
-const hovKey = (key: string) => ({ ...hov(key), color: HOTKEY_ACCENT }) as const
-const WIDE = 110 // Width requested when expanded. A width the user dragged to takes precedence.
 
 // Depending on the position setting (cur.position), open a right split (Pane) or mark the panel to be drawn above the prompt.
 // The engine doesn't let plugins choose the Pane position, so the bottom position draws the same screen in the AbovePrompt area instead.
@@ -169,16 +113,15 @@ let version: string | undefined
 let pixelTerm: boolean | undefined
 // Whether character art uses quadrant blocks (▘▀▙) instead of octants: on terminals not known to have octant glyphs (Obsidian's terminal and others), octants break the layout.
 let blockArt = false
-// Whether the terminal shows 24-bit colors (COLORTERM). Without it the engine rounds each color to the 256-color palette, where the dark tints below come out as a light gray.
-let trueColor = true
 async function decidePixelTerm($: EngineInterface) {
-  trueColor = await $.env.get('COLORTERM').then(v => /truecolor|24bit/i.test(v ?? '')).catch(() => true)
+  colorMode.trueColor = await $.env.get('COLORTERM').then(v => /truecolor|24bit/i.test(v ?? '')).catch(() => true)
   // If environment variables can't be read (permissions, tests), use octant character art
   const env = await Promise.all([$.env.get('TERM'), $.env.get('TERM_PROGRAM'), $.env.get('KITTY_WINDOW_ID'), $.env.get('TMUX'), $.env.get('GHOSTTY_RESOURCES_DIR'), $.env.get('WEZTERM_EXECUTABLE'), $.env.get('ZELLIJ'), $.env.get('STY'), $.env.get('HERDR_ENV')])
     .then(([TERM, TERM_PROGRAM, KITTY_WINDOW_ID, TMUX, GHOSTTY_RESOURCES_DIR, WEZTERM_EXECUTABLE, ZELLIJ, STY, HERDR_ENV]) => ({ TERM, TERM_PROGRAM, KITTY_WINDOW_ID, TMUX, GHOSTTY_RESOURCES_DIR, WEZTERM_EXECUTABLE, ZELLIJ, STY, HERDR_ENV }))
     .catch(() => undefined)
-  pixelTerm = env ? pixelTerminal(env) : false
-  blockArt = env ? !octantTerminal(env) : false
+  const art = env ? termArt(env) : 'octant'
+  pixelTerm = art === 'image'
+  blockArt = art === 'quadrant'
   const loc = await Promise.all([$.env.get('LC_ALL'), $.env.get('LC_CTYPE'), $.env.get('LANG')]).catch(() => [undefined, undefined, undefined])
   iconEnv = { ...env, LC_ALL: loc[0], LC_CTYPE: loc[1], LANG: loc[2] }
 }
@@ -190,8 +133,6 @@ type Wheel = { offset: number; areaAt: (fromBottom: number, column: number) => (
 const wheels = new Map<string, Wheel>()
 // Offset the whole-panel scrollbar asked for, applied when its ui.scroll comes back from the plugin
 const paneSeek = new Map<string, number>()
-// Mix a hex color with white (k is the white ratio).
-const mixWhite = (hex: string, k: number) => `#${[1, 3, 5].map(i => Math.round(parseInt(hex.slice(i, i + 2), 16) * (1 - k) + 255 * k).toString(16).padStart(2, '0')).join('')}`
 let peersBusy = false // Another session works: the timer keeps ticking so its ● blinks.
 let busy = false // Read by the animation timer. A module variable, so it's recomputed on reload.
 
@@ -271,7 +212,7 @@ function checkAdvice($: Parameters<typeof update>[0] & { ui: { toast: (text: str
 }
 
 // Settings: defaults come from the plugin settings (userConfig), overlaid with values changed in the settings screen (prefs). Changes apply to cur immediately.
-let base: Required<Prefs> = { autoOpen: true, ctxAlertPercent: 80, turnCostAlertUsd: 2, stallSeconds: 120, position: 'right', autoUpdate: true, view: 'default', character: 'cat', sessionRows: 4, tabRows: 4, freshMode: 'ask', freshAtK: 200, fork: false, spawn: 'off', spawnKey: ';', icon: 'auto', idleAlertMin: 60, topicCheck: true }
+let base: Required<Prefs> = { autoOpen: true, ctxAlertPercent: 80, turnCostAlertUsd: 2, stallSeconds: 120, position: 'right', autoUpdate: true, view: 'default', character: 'cat', sessionRows: 4, tabRows: 4, freshMode: 'ask', freshAtK: 200, fork: false, spawn: 'off', spawnKey: ';', icon: 'auto', idleAlertMin: 60, topicCheck: true, mutedTips: [], freshPreview: false }
 let cur: Required<Prefs> = { ...base }
 // Before Spawn, the setting was Fork with ';' (fork: true): it stands for bg with ; until Spawn is saved
 const withSpawn = (p: Prefs): Prefs => (p.spawn === undefined && p.fork ? { ...p, spawn: 'bg' } : p)
@@ -385,6 +326,12 @@ async function startFresh($: EngineInterface, wait = false, then?: string) {
   $.ui.toast(wait ? 'Goyangi · Writing a handoff note; your next prompt continues in a fresh session' : 'Goyangi · Writing a handoff note, then continuing in a fresh session')
   await $.prompt.submit({ text: `The context has grown long, so this work continues in a fresh session in this window. Write a handoff note to ${freshFile} for the session that picks it up: the goal, what is done, the decisions made and why, the files involved, what is left and the very next step, and anything that went wrong or is easy to miss. If your last reply asked the person something, put that question in the note word for word. Write only that file, then reply "handoff written".` })
 }
+// Fresh session preview (setting): shows the start of the note and asks before /clear. False when the person stays in this session.
+async function previewNote($: EngineInterface) {
+  const note = await $.fs.read(freshFile).then(t => (typeof t === 'string' ? t.trim() : ''), () => '')
+  const a = await $.ui.ask(`The handoff note starts like this:\n\n${note.length > 600 ? `${note.slice(0, 599)}…` : note}\n\nContinue in a fresh session with it? (the full note is in ${freshFile})`, { header: 'Goyangi', options: ['Continue', 'Stay here'] }).catch(() => undefined)
+  return a !== 'Stay here'
+}
 // After the note: /clear, outside the turn's hooks (a hook the turn waits on can't run a command)
 async function clearToFresh($: EngineInterface) {
   await update($, freshStage, () => 'clearing')
@@ -406,11 +353,11 @@ async function holdWhy($: EngineInterface, text: string): Promise<{ why: string;
   const lastAt = last.endedAt ?? last.startedAt
   const now = await $.clock.now()
   if (idleDue(lastAt, now, cur.idleAlertMin, k, minK))
-    return { why: `${Math.round((now - lastAt) / 60_000)} min since the last turn, so the prompt cache has expired and sending this prompt here writes ${k}k tokens of context again.`, topic: false }
+    return { why: `Cache expired: ${Math.round((now - lastAt) / 60_000)} min since the last turn, so the prompt cache has expired and sending this prompt here writes ${k}k tokens of context again.`, topic: false }
   if (!cur.topicCheck || k < minK || topicSkip(text)) return
   if (await $.store.get(`topicKept:${await $.session.id()}`).catch(() => undefined)) return
   const r = await $.model.complete({ model: 'haiku', prompt: topicAsk(t.turns.slice(-3).map(s => s.prompt), text), effort: 'low', maxTokens: 5, timeoutMs: 5000 })
-  if (r.isAnswered && topicNew(r.text)) return { why: `This prompt looks unrelated to the earlier conversation, and sending it here reads ${k}k tokens of context.`, topic: true }
+  if (r.isAnswered && topicNew(r.text)) return { why: `Topic change: this prompt looks unrelated to the earlier conversation, and sending it here reads ${k}k tokens of context.`, topic: true }
 }
 // The held prompt's question, asked after the drop so the submit hook isn't held open by the dialog.
 // Clear and send (topic): /clear, and the new session gets the prompt as typed (session.start, a fresh record with then and no file).
@@ -812,79 +759,14 @@ const isLightTerm = async ($: EngineInterface) => /light/.test(String((await $.c
 const tinter = async ($: EngineInterface, surface: string) => {
   const light = surface !== 'desktop' && (await isLightTerm($))
   if (pixelTerm === undefined) await decidePixelTerm($)
-  const indexed = surface !== 'desktop' && !light && !trueColor
+  const indexed = surface !== 'desktop' && !light && !colorMode.trueColor
   return (dark: string, hue: string) => (surface === 'desktop' ? `${hue}33` : light ? mixWhite(hue, 0.8) : indexed ? indexedTint(dark, hue) : dark)
 }
-// What the engine's rounding shows for #rrggbb in a 256-color terminal: grays go to the 24-step ramp, other colors to 6 levels per channel.
-const LEVELS = [0, 95, 135, 175, 215, 255]
-const shown = (r: number, g: number, b: number): number[] => {
-  if (r === g && g === b) { const v = r < 8 ? 0 : r > 248 ? 255 : 8 + 10 * Math.round(((r - 8) / 247) * 24); return [v, v, v] }
-  return [r, g, b].map(c => LEVELS[Math.round((c / 255) * 5)]!)
-}
-const SNAP = [...Array.from({ length: 24 }, (_, n) => [8 + 10 * n, 8 + 10 * n, 8 + 10 * n]), ...Array.from({ length: 216 }, (_, i) => [Math.floor(i / 36) * 51, (Math.floor(i / 6) % 6) * 51, (i % 6) * 51])]
-const snapped = new Map<string, string>()
-// A background hex color as a 256-color terminal would show it, snapped to the input whose shown color is the nearest to the wanted one (e.g. '#3b4261' shows as the
-// gray '#5f5f5f' by rounding; '#303030' is the nearest the palette has). Left alone with 24-bit colors, and for tokens such as 'subtle'.
-const indexedBg = (c: string): string => {
-  if (trueColor || !/^#[0-9a-f]{6}$/i.test(c)) return c
-  const hit = snapped.get(c)
-  if (hit) return hit
-  const want = [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16))
-  let best = SNAP[0]!, bestD = Infinity
-  for (const cand of SNAP) {
-    const sh = shown(cand[0]!, cand[1]!, cand[2]!)
-    const d = sh.reduce((a, v, i) => a + (v - want[i]!) ** 2, 0)
-    if (d < bestD) { bestD = d; best = cand }
-  }
-  const out = `#${best.map(v => v.toString(16).padStart(2, '0')).join('')}`
-  snapped.set(c, out)
-  return out
-}
-// A dark tint for a 256-color terminal. The engine rounds a color to the palette by rounding each channel to one of 6 levels (0, 95, 135, 175, 215, 255), so
-// '#3a1f24' becomes '#5f5f5f', far lighter than meant. A tint of the hue's strongest channels at 64 lands on level 95 of just those channels (dark red, dark teal),
-// and a hue with no strong channel (gray) gets the dark gray of the grayscale ramp. A token such as 'subtle' passes through.
-const indexedTint = (dark: string, hue: string) => {
-  if (!/^#[0-9a-f]{6}$/i.test(dark)) return dark
-  const ch = [1, 3, 5].map(i => parseInt(hue.slice(i, i + 2), 16))
-  const max = Math.max(...ch)
-  const strong = ch.map(c => (max - Math.min(...ch) > 40 && c >= max * 0.7 ? 64 : 0))
-  return strong.some(Boolean) ? `#${strong.map(c => c.toString(16).padStart(2, '0')).join('')}` : '#262626'
-}
-
 // The side panel (Pane) paints its own dark background, so there the theme's white text is the right default. The area above the prompt (the band, and the panel placed
 // there) shows the terminal's own background, which may be light or dark: the terminal's default colors stay, and colors picked for a dark background are darkened
 // until they read on a white one too (midColor).
 type InkMode = 'pane' | 'band' | 'off'
 const inkMode = (e: { surface: string; component: string }): InkMode => (e.surface === 'desktop' ? 'off' : e.component === 'Pane' ? 'pane' : 'band')
-// Relative luminance of #rrggbb (0 black to 1 white), and the color darkened toward black until its luminance is at most 0.28: a contrast of 3:1 or more on white,
-// and still 6:1 on black. A color already that dark, and anything that isn't #rrggbb (theme tokens), stays.
-const luma = (r: number, g: number, b: number) => [r, g, b].map(v => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4 }).reduce((a, c, i) => a + c * [0.2126, 0.7152, 0.0722][i]!, 0)
-const midColor = (c: string | undefined): string | undefined => {
-  if (!c || !/^#[0-9a-f]{6}$/i.test(c)) return c
-  const rgb = [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16))
-  let f = 1
-  while (f > 0.2 && luma(rgb[0]! * f, rgb[1]! * f, rgb[2]! * f) > 0.28) f -= 0.05
-  const out = f === 1 ? c : `#${rgb.map(v => Math.round(v * f).toString(16).padStart(2, '0')).join('')}`
-  return trueColor ? out : snapDark(out)
-}
-// In a 256-color terminal the engine rounds each channel to the palette's levels (0, 95, 135, ...), which turns a mid color into a lighter one: '#6b7280' shows as
-// (135,135,175). So of the colors the palette can show, take the nearest to the wanted one among those dark enough (luminance 0.30 at most) to read on white.
-const snappedDark = new Map<string, string>()
-const snapDark = (c: string): string => {
-  const hit = snappedDark.get(c)
-  if (hit) return hit
-  const want = [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16))
-  let best = SNAP[0]!, bestD = Infinity
-  for (const cand of SNAP) {
-    const sh = shown(cand[0]!, cand[1]!, cand[2]!)
-    if (luma(sh[0]!, sh[1]!, sh[2]!) > 0.3) continue
-    const d = sh.reduce((a, v, i) => a + (v - want[i]!) ** 2, 0)
-    if (d < bestD) { bestD = d; best = cand }
-  }
-  const out = `#${best.map(v => v.toString(16).padStart(2, '0')).join('')}`
-  snappedDark.set(c, out)
-  return out
-}
 // On the side panel in the terminal, text and borders given no color take the terminal's own default foreground. Some terminals (Obsidian's) draw that dark, on the panel's dark
 // background, so titles, step boxes and list rows vanish. Give them the theme's text color instead; a color set on the element still wins. Desktop is left as is.
 const inkText = (mode: InkMode, T: ElementConstructor<TextProps>): ElementConstructor<TextProps> => (mode === 'off' ? T : mode === 'band' ? p => T({ ...p, ...(p.color ? { color: midColor(p.color) } : p.dimColor ? { color: C.dim, dimColor: false } : {}) }) : p => T({ ...p, color: p.color ?? 'text', ...(p.backgroundColor ? { backgroundColor: indexedBg(p.backgroundColor) } : {}) }))
@@ -1576,10 +1458,12 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
   }
   const hasShares = ft.flow.length > 0 && turnMs > 0
   // Advice: computed from this turn's data (or the replayed past turn's). Past turns have no failure counts, so the repeated failure rule is skipped.
-  const tips = advise({ flow: ft.flow, fails: snap ? {} : t.fails, ctxPercent: snap ? 0 : ctxPct, limits: snap ? [] : limits.map(l => ({ kind: l.key, pct: l.pct, eta: l.eta })) })
+  const muted = cur.mutedTips
+  const tips = advise({ flow: ft.flow, fails: snap ? {} : t.fails, ctxPercent: snap ? 0 : ctxPct, limits: snap ? [] : limits.map(l => ({ kind: l.key, pct: l.pct, eta: l.eta })) }).filter(a => !muted.includes(a.id))
   const tipsAll = await read($, tipsOpen)
   const tipLines = tips.length === 0 ? 0 : tipsAll ? tips.length : 1
   const toggleTips = () => quiet(update($, tipsOpen, v => !v))
+  const muteTip = (id: string) => () => quiet(savePrefs($, { mutedTips: [...muted, id] }))
   const headLines = (!f.flow && filesLine ? 1 : 0) + (!f.flow && hasShares ? 2 : 0) + (!f.flow ? tipLines : 0)
   const flowMeta = `${ft.flow.length ? secs(t1 - t0) : ''}${turnCost !== undefined ? ` · ≈${usd(turnCost)}` : ''} ${ft.turn.running ? '●' : ''}`
   // Room for the prompt in the turn flow title: total - 'f: ▾ TURN FLOW  ""' (19 cells) - time/cost on the right - padding. Under 8 cells it's left out.
@@ -1602,11 +1486,10 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
             <Text bold color="#1e2030" backgroundColor={a.level === 'warn' ? C.tool : '#8ab4f8'}>{a.level === 'warn' ? ' ⚠ Warn ' : ' 💡 Tip '}</Text>
             <Text color={onTint(a.level === 'warn' ? '#f6d9a8' : '#c6dbff')}> {a.text}</Text>
           </Text>
-          {j === 0 && tips.length > 1 && (
-            <Box flexShrink={0} marginLeft={1}>
-              <Button key="tips-more" hover={hov('tips-more')} plain dimColor label={tipsAll ? 'less ▴' : `+${tips.length - 1} ▾`} onPress={toggleTips} />
-            </Box>
-          )}
+          <Box flexShrink={0} marginLeft={1} gap={1}>
+            {j === 0 && tips.length > 1 && <Button key="tips-more" hover={hov('tips-more')} plain dimColor label={tipsAll ? 'less ▴' : `+${tips.length - 1} ▾`} onPress={toggleTips} />}
+            <Button key={`tip-mute-${a.id}`} hover={hov(`tip-mute-${a.id}`)} plain dimColor label="mute" onPress={muteTip(a.id)} />
+          </Box>
         </Box>
       ), a.why, 0, undefined, below(j)))
   // Turn flow title row: shared by the flow chart and the compact view (each wraps it in its own reveal, so its card goes to that view's sink).
@@ -1821,6 +1704,15 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
   // Turns without an archive (pushed out as old) don't open. Archives are read only when clicked.
   const openTurn = (id: string) => () => quiet(read($, archive).then(a => Promise.all([update($, viewTurn, v => (v === id || !a[id] ? '' : id)), update($, replayFrom, () => Date.now())])))
   const toggleTall = () => quiet(update($, mapTall, v => !v))
+  const exportSummary = () => quiet((async () => {
+    const id = await $.session.id()
+    const file = `${(await $.env.get('TMPDIR').catch(() => undefined)) || '/tmp/'}goyangi/summary-${id}.md`.replace(/\/\/+/g, '/')
+    await $.fs.write(file, sessionSummary({ id, turns: t.turns, total: t.turnTotal, first: firstTurn, cost: usage?.cost?.usd, now }))
+    $.ui.toast(`Goyangi · Summary saved to ${file}`)
+  })())
+  // The three heaviest turns by the current basis (cost or time); pressing one scrolls the map to it.
+  const topList = t.turns.length >= 4 ? topTurns(t.turns, firstTurn, weightOf, 3) : []
+  const jumpTo = (no: number) => () => quiet(update($, mapEnd, () => { const end = Math.max(firstTurn + mapRows, no + Math.floor(mapRows / 2)); return end >= t.turnTotal ? -1 : end }))
   const toggleBasis = () => quiet(update($, mapBasis, v => (v === 'cost' ? 'time' : 'cost')))
   const diffFiles = Object.entries(t.diff ?? {})
   const diffAdd = diffFiles.reduce((s, [, d]) => s + d.add, 0)
@@ -1843,8 +1735,13 @@ async function drawPanel($: EngineInterface, e: RenderInput<'Pane' | 'AbovePromp
             `${basis === 'cost' ? 'Cost' : 'Time'} trend over the last ${Math.min(32, t.turns.length)} turns. One braille cell holds two turns (left column, right column); the rightmost dot is the latest turn.`, 0, 44)}</Box>}
         </Box>
         <Box flexShrink={1} minWidth={0} marginLeft={1} flexWrap="wrap" columnGap={2} rowGap={0}>
+          {usage?.cost?.usd !== undefined && <Text dimColor>session <Text color={M.cost}>≈{usd(usage.cost.usd)}</Text></Text>}
+          {topList.length > 0 && cols >= 80 && <Box flexShrink={0} gap={1}><Text dimColor>top</Text>{topList.map(x => (
+            <Button key={`map-top-${x.no}`} hover={hov(`map-top-${x.no}`)} plain label={`T${x.no} ${basis === 'cost' ? `≈${usd(x.w)}` : secs(Math.round(x.w))}`} onPress={jumpTo(x.no)} />
+          ))}</Box>}
           {hist.today.sessions > 0 && cols >= 120 && <Text dimColor>today <Text color={M.cost}>≈{usd(hist.today.cost)}</Text> ({hist.today.sessions}) · 7d <Text color={M.cost}>≈{usd(hist.week.cost)}</Text></Text>}
           <Button key="map-basis" hover={hov('map-basis')} plain dimColor label={`⚖ ${basis === 'cost' ? 'cost' : 'time'}`} onPress={toggleBasis} />
+          <Button key="map-export" hover={hov('map-export')} plain dimColor label="⤓ md" onPress={exportSummary} />
           <Button key="map-tall" hover={hov('map-tall')} plain dimColor label={`⇕ ${mapRows} rows`} onPress={toggleTall} />
           <Text color={mwin.follow ? C.main : C.tool}>{mwin.follow ? '● live' : '⏸ paused'}</Text>
           {/* A pair of up/down scroll buttons. Desktop default buttons have inner padding, so no gap is added. */}
@@ -2895,6 +2792,12 @@ async function settingsScreen($: EngineInterface, e: RenderInput<'Pane' | 'Above
     row('Auto update', (
         <Button key="set-autoUpdate" hover={hov('set-autoUpdate')} variant={eff.autoUpdate ? 'primary' : undefined} label={eff.autoUpdate ? 'On' : 'Off'} onPress={setPref({ autoUpdate: !eff.autoUpdate })} />
       )),
+    row('Muted tips', (
+      <Button key="set-mutedTips" hover={hov('set-mutedTips')} plain dimColor={!eff.mutedTips.length} label={eff.mutedTips.length ? `${eff.mutedTips.length} muted · unmute all` : 'none'} onPress={setPref({ mutedTips: [] })} />
+    )),
+    row('Preview handoff', (
+        <Button key="set-freshPreview" hover={hov('set-freshPreview')} variant={eff.freshPreview ? 'primary' : undefined} label={eff.freshPreview ? 'On' : 'Off'} onPress={setPref({ freshPreview: !eff.freshPreview })} />
+      )),
     row('View mode', (
       <Button key="set-view" hover={hov('set-view')} variant={eff.view === 'default' ? undefined : 'primary'} label={VIEW_NAME[eff.view]} onPress={setPref({ view: VIEW_NEXT[eff.view] })} />
     )),
@@ -2957,37 +2860,6 @@ async function settingsScreen($: EngineInterface, e: RenderInput<'Pane' | 'Above
 
 }
 
-// Status chip shared by the panel header and the minimized view: idle is dim text with no chip; the rest are bold on a background color per status.
-// Text is the surface's element (from $.ui.resolve); idleColor is the idle text color where the background needs one (the header's inverted band).
-const STATE_CHIP = { tool: ['claude', '⚙ tool'], thinking: ['suggestion', '◐ thinking'], live: ['success', '● live'], failed: ['error', '✗ idle'] } as const
-const stateChip = (Text: ElementConstructor<TextProps>, hs: ReturnType<typeof headState>, idleColor?: string) => {
-  if (hs === 'idle') return <Text color={idleColor} dimColor wrap="truncate">○ idle</Text>
-  const [bg, label] = STATE_CHIP[hs]
-  return <Text bold color="inverseText" backgroundColor={bg} wrap="truncate"> {label} </Text>
-}
-
-// Step track shared by the minimized view's row 1 and the compact view: ◂N for the spots dropped from the front, then the tokens joined by ─,
-// the running one with the spinner and its tools' marks. pet is drawn right before the latest token (the minimized view's octant pet).
-const trackParts = (Text: ElementConstructor<TextProps>, track: ReturnType<typeof miniTrack>, spin: string, pet: JSX.Element | null = null) => {
-  const tokColor = (st: string) => (st === 'run' ? C.tool : st === 'fail' ? C.fail : C.main)
-  return [
-    ...(track.hidden > 0 ? [<Text key="mt-hidden" dimColor>◂{track.hidden}</Text>] : []),
-    ...track.toks.map((k, i) => (
-      <Text key={`mt-${i}`}>
-        <Text dimColor>{i || track.hidden ? '─' : ' '}</Text>
-        {i === track.toks.length - 1 && pet}
-        <Text bold={k.state === 'run'} color={k.kind === 'step' || k.state !== 'ok' ? tokColor(k.state) : C.dim}>{k.state === 'run' ? spin : ''}{k.text}</Text>
-        {k.tools && <Text> {[...k.tools].map((c, j) => <Text key={`mtt-${j}`} color={MARK[c]?.c ?? C.dim}>{MARK[c]?.g ?? '■'}</Text>)}</Text>}
-      </Text>
-    )),
-  ]
-}
-// Counts shared by the minimized view's row 2 and the compact view: main's steps and tools, then running / total subagents.
-const loopCounts = (Text: ElementConstructor<TextProps>, t: Tree, live: number) => [
-  <Text key="lc-steps"><Text bold color={M.steps}>step {t.main.steps}</Text><Text dimColor> · </Text><Text bold color={M.tools}>tool {t.main.tools}</Text></Text>,
-  <Text key="lc-agents" bold color={live ? C.agent : C.dim}>⑂ {live}/{t.agents.length}</Text>,
-]
-
 export const register: Register = (on, options) => {
   base = {
     autoOpen: options.autoOpen !== false,
@@ -3008,6 +2880,8 @@ export const register: Register = (on, options) => {
     icon: 'auto',
     idleAlertMin: num(options.idleAlertMin, 60),
     topicCheck: true,
+    mutedTips: [],
+    freshPreview: false,
   }
   cur = { ...base }
 
@@ -3416,6 +3290,7 @@ export const register: Register = (on, options) => {
           // The note the model wrote, or Goyangi's own when it didn't
           const wrote = await $.fs.read(freshFile).then(t => typeof t === 'string' && t.trim().length > 0, () => false)
           if (!wrote) await $.fs.write(freshFile, await myHandoff($))
+          if (cur.freshPreview && !(await previewNote($))) return update($, freshStage, () => '')
           return clearToFresh($)
         }
         if (stage === 'preparing') {
@@ -3546,7 +3421,7 @@ export const register: Register = (on, options) => {
       : BandSvg ? <Box key="band-pet" flexShrink={0} width={2} height={1} marginRight={1}><BandSvg source={dotSvg(petArt, petPal)} alt="pet" width={16} height={16} /></Box>
       : BandImage ? <Box key="band-pet" flexShrink={0} width={2} height={1} marginRight={1}><BandImage source={dotRgba(petArt, petPal, 16, IMG_SCALE)} columns={2} rows={1} alt="pet" /></Box>
       // 4 cells of quadrant blocks are too few to tell a cat from a blob, so terminals without the octant glyphs show the animal's emoji (2 cells each: the animal, then its state)
-      : blockArt ? <Text key="band-pet">{(bandPrefs.character === 'dog' ? '🐶' : '🐱') + (petBusy ? '💨' : petFailed ? '❗' : '💤')} </Text>
+      : blockArt ? <Box key="band-pet" flexShrink={0} marginRight={1}><Text>{(bandPrefs.character === 'dog' ? '🐶' : '🐱') + (petBusy ? '💨' : petFailed ? '❗' : '💤')}</Text></Box>
       : <Text key="band-pet">{dotRows(miniSprite(petBusy ? n : 0, bandPrefs.character), petPal, blockArt)[0]!.map((g, k) => <Text key={`bp-${k}`} color={g.fg} backgroundColor={g.bg}>{g.text}</Text>)} </Text>
     // The title's logo: the same cat face as the header's, on the blue chip; null (the 🐱 emoji) until it is loaded or where no image can be drawn
     const bandLogoPng = (await read($, icons))['goyangi']?.png

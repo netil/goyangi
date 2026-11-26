@@ -87,6 +87,8 @@ cd tools/layout-check && npm install
 node check.mjs              # default view; or pass widths: node check.mjs 26 40 60
 VIEW=avatar node check.mjs  # walk view (also SETTINGS=1, MODE=band for the minimized view)
 FRAMES=1 node check.mjs 30  # print the frames, to spot titles wrapping into columns
+TERM_KIND=herdr node check.mjs  # ghostty, wezterm, herdr or iterm (default): the environment the terminal sets
+npm run matrix              # every terminal kind, view and mode
 ```
 
 ## Release

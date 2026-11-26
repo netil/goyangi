@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.4.0 (2026-11-26)
+
+### Features
+
+- Session map header shows the session's cost (`session ≈$X`) at any width, and the three heaviest turns (`top T5 ≈$0.42`) at 80 columns or more; pressing one scrolls the map to that turn. The basis follows the ⚖ cost or time switch
+- Advice rows have a `mute` button. Muted advice stays hidden in every session; the settings screen's `Muted tips` row shows the count and unmutes all
+- The prompt hold question starts with its reason: `Cache expired:` or `Topic change:`
+- Settings: `Preview handoff` (off by default). When on, the start of the handoff note is shown before a fresh session starts, with `Continue` and `Stay here`
+- `⤓ md` in the session map header saves a markdown summary of the session (totals and one row per turn) and shows its path
+
+### Bug Fixes
+
+- The minimized view's emoji pet no longer pushes the row one cell wider than the panel at narrow widths (26 and 32 columns) on terminals without octant glyphs
+
+### Changes
+
+- What a terminal can draw (image, octant or quadrant art) is decided in one function, `termArt`, with a test for 11 terminal setups, herdr, tmux and zellij included
+- `tools/layout-check` takes `TERM_KIND` (`ghostty`, `wezterm`, `herdr`, `iterm`), and `npm run matrix` runs every terminal and view
+- Color helpers, panel constants and the status chip and step track moved out of `register.tsx` into `hooks/color.ts`, `hooks/theme.ts` and `hooks/chips.tsx`
+
 ## v1.3.0 (2026-11-25)
 
 ### Features

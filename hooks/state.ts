@@ -411,6 +411,28 @@ export function historySummary(list: SessionRecord[], now: number) {
   return { today: sum(d.getTime()), week: sum(now - 7 * 86400_000) }
 }
 
+// The n heaviest turns by the given weight (cost or time), heaviest first, with their turn numbers (the log keeps the last turns; first is the number before the first kept one).
+export const topTurns = <T,>(turns: readonly T[], first: number, weight: (t: T) => number, n: number) =>
+  turns.map((t, i) => ({ no: first + i + 1, w: weight(t) })).filter(x => x.w > 0).sort((a, b) => b.w - a.w).slice(0, n)
+
+// The session as a markdown summary: totals, then one row per turn kept in the log (the log keeps the last turns, so first is the number before the first kept one).
+export function sessionSummary(x: { id: string; turns: readonly SessionTurn[]; total: number; first: number; cost?: number; now: number }): string {
+  const clip = (s: string, n: number) => { const t = s.replace(/\s+/g, ' ').replace(/\|/g, '/').trim(); return t.length > n ? `${t.slice(0, n - 1)}…` : t }
+  const dur = (t: SessionTurn) => secs(Math.round((t.endedAt ?? x.now) - t.startedAt))
+  const rows = x.turns.map((t, i) => `| T${x.first + i + 1} | ${clip(t.prompt, 60)} | ${dur(t)} | ${t.tools} | ${t.agents} | ${t.cost === undefined ? '' : usd(t.cost)} | ${t.ok ? 'ok' : 'failed'} |`)
+  return [
+    `# Goyangi session summary ${x.id}`,
+    '',
+    `- Turns: ${x.total}${x.turns.length < x.total ? ` (the last ${x.turns.length} are listed)` : ''}`,
+    x.cost === undefined ? '' : `- Cost: ${usd(x.cost)}`,
+    '',
+    '| Turn | Prompt | Time | Tools | Agents | Cost | Result |',
+    '|---|---|---|---|---|---|---|',
+    ...rows,
+    '',
+  ].filter((l, i, a) => l !== '' || a[i - 1] !== '').join('\n')
+}
+
 // Pick flow chart branches: running items first, then fill remaining slots with recently finished ones (original order kept).
 // With max or fewer branches, or when expanded, show all. hidden is the number hidden.
 export function pickKids<T extends { item: { endedAt?: number } }>(kids: T[], max: number, open: boolean): { shown: T[]; hidden: number } {
@@ -942,6 +964,13 @@ export function pixelTerminal(env: { TERM?: string; TERM_PROGRAM?: string; KITTY
   if (env.TMUX || env.ZELLIJ || env.STY || env.HERDR_ENV || /^(tmux|herdr)$/i.test(env.TERM_PROGRAM ?? '')) return false
   return /kitty|ghostty/i.test(env.TERM ?? '') || /ghostty/i.test(env.TERM_PROGRAM ?? '') || (ownVars(env) && !!env.KITTY_WINDOW_ID)
 }
+
+// What the panel can draw for the character art and the header logo, decided in one place:
+// image (kitty, Ghostty: a pixel Image), octant (WezTerm, or a multiplexer in front of one of these: octant glyphs, no image), quadrant (everything else: block glyphs).
+// Where the logo is not an image, the header shows the 🐱 emoji.
+export type TermArt = 'image' | 'octant' | 'quadrant'
+export type TermEnv = Parameters<typeof pixelTerminal>[0] & Parameters<typeof octantTerminal>[0]
+export const termArt = (env: TermEnv): TermArt => pixelTerminal(env) ? 'image' : octantTerminal(env) ? 'octant' : 'quadrant'
 
 // Place several pixel art layers on one w × h pixel canvas. Parts outside are clipped.
 // extra is SVG not drawn on the pixel grid (flags, text), placed on top.
